@@ -20,7 +20,15 @@ pip install lmfit
 pip install jupyterlab
 ```
 
-* How to create path to package so that ipython can find it
+2. Clone the lbFCS repository from github
+
+3. Let iPython know where it can find the lbFCS repository (for Jupyter Notebook or Spyder)
+   * Browse to ~/.ipython/profile_default in your home directory
+   * Create a file called startup.py with the following content
+   ```
+   import sys
+   sys.path.append('Path to /lbFCS')
+   ```
 
 ## Usage
 
