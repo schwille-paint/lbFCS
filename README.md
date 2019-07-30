@@ -8,6 +8,7 @@ with DNA-PAINT'][paper]).
 1. Create a [conda][conda] environment with the following commands:
 ```
 conda create --name lbFCS python=3.5
+conda activate lbFCS
 conda install h5py matplotlib numba numpy scipy pyqt=4 pyyaml scikit-learn colorama tqdm spyder pandas dask spyder fastparquet pytables
 pip install lmfit
 ```
