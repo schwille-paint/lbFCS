@@ -4,6 +4,12 @@
 Python package to evaluate [DNA-PAINT][paint] SMLM data via autocorrelation analysis for self-calbrating counting of molecules (according to ['Self-calibrating molecular counting
 with DNA-PAINT'][paper]). 
 
+![principle](principle.png)
+
+## Table of contents
+* [Installation](#installation)
+* [Usage](#usage)
+
 ## Installation
 1. Create a [conda][conda] environment with the following commands:
 ```
@@ -13,9 +19,9 @@ conda install h5py matplotlib numba numpy scipy pyqt=4 pyyaml scikit-learn color
 pip install lmfit
 ```
 
-
 * How to create path to package so that ipython can find it
 
+## Usage
 
 
 
