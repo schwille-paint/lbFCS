@@ -31,7 +31,16 @@ pip install jupyterlab
    ```
 
 ## Usage
+### 1. Localize
 
+### 2. Undrift
+
+### 3. Autopick
+
+### 4. Render: Picked
+
+### 5. Pickprops
+See this [notebook](/scripts/notebooks/call_autopick.ipynb)
 
 
 [paint]:https://www.nature.com/articles/nprot.2017.024
