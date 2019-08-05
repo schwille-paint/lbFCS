@@ -29,7 +29,7 @@ pip install jupyterlab
    import sys
    sys.path.append('Path to /lbFCS')
    ```
-4. Install the picasso GUI
+4. Install the [picasso GUI](https://github.com/jungmannlab/picasso) (standard installation).
 
 ## Usage
 The following is a short guide through the necessary processing steps from DNA-PAINT raw-data to the final result according to ['Self-calibrating molecular counting
