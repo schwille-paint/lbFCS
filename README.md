@@ -38,16 +38,18 @@ with DNA-PAINT'][paper]. For more information on the imaging modalities or sampl
 ### 1. Localize
 Localize DNA-PAINT raw-data aquired under low exitation intensities (approx. 1e-2 kW/cm^2 with a frame rate of 5Hz used imager was labeled with Cy3B) using the [picasso.localize](https://picassosr.readthedocs.io/en/latest/localize.html) module. 
 The following picture shows the standard parameters used and the typical look of our raw data. 
-![principle](/docs/figures/localize.png)
+![localize](/docs/figures/localize.PNG)
+
 The box size should be set to the minimum length in which the PSF of your microscope fits in. 
-The minimum net gradient should be be chosen low enough so that every spot that can be tetected by eye is also detected by localize.  
+The minimum net gradient should be be chosen low enough so that every spot that can be detected by eye is also detected by localize.  
 Notice that the photon conversion parameters might differ depending on your camera model. 
 Afer you adjusted all the parameters localize by choosing >Analyze>Localize. A '_locs.hdf5' file is created in the same folder as the raw-data that is used for further analysis.
 
 ### 2. Undrift
 Undrift the '_locs.hdf5' file using the [picasso.render ](https://picassosr.readthedocs.io/en/latest/render.html) module.
 Therefore drag and drop the '_locs.hdf5' file into the render GUI and choose >Postprocess>Undrift by RCC with a segmentation of 500. 
-![principle](/docs/figures/undrift.png)
+![undrift](/docs/figures/undrift.PNG)
+
 An undrifted '_locs_render.hdf5' file is created in the same folder as the raw-data that is used for further analysis.
 ### 3. Autopick
 
