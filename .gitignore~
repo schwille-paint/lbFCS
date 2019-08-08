@@ -2,4 +2,3 @@ __pycache__/
 .ipynb_checkpoints/
 /picasso/__pycache__
 /lbfcs/__pycache__
-/scripts/notebooks/.ipynb_checkpoints
