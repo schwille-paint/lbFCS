@@ -38,7 +38,7 @@ with DNA-PAINT'][paper]. For more information on the imaging modalities or sampl
 ### 1. Localize
 Localize DNA-PAINT raw-data aquired under low exitation intensities (approx. 10 kW/cm^2 with a frame rate of 5Hz used imager was labeled with Cy3B) using the [picasso.localize](https://picassosr.readthedocs.io/en/latest/localize.html) module. 
 The following picture shows the standard parameters used and the typical look of our raw data. 
-![localize](/docs/figures/localize.PNG)
+![localize](/docs/figures/localize.png)
 
 The shown paramters apply to the standard conditions of our setup & sample and might hence differ under other circumstances. In general the follwing rules should apply for the selections of localization parameters with picasso.localize
    * Set the box size to the minimum length in which the PSF of your microscope fits in 
@@ -50,16 +50,17 @@ Afer you adjusted all the parameters localize by choosing >Analyze>Localize. A '
 ### 2. Undrift
 Undrift the '_locs.hdf5' file using the [picasso.render ](https://picassosr.readthedocs.io/en/latest/render.html) module.
 Therefore drag and drop the '_locs.hdf5' file into the render GUI and choose >Postprocess>Undrift by RCC with a segmentation of 500. 
-![undrift](/docs/figures/undrift.PNG)
+![undrift](/docs/figures/undrift.png)
 
 An undrifted '_locs_render.hdf5' file is created in the same folder as the raw-data that is used for further analysis.
 
 ### 3. Autopick
+Go to the [autopick notebook](/scripts/notebooks/autopick.ipynb)
 
 ### 4. Render: Picked
 
 ### 5. Pickprops
-See this [notebook](/scripts/notebooks/pickprops&filter.ipynb)
+Go to the [pickprops&filter notebook](/scripts/notebooks/pickprops&filter.ipynb)
 
 
 [paint]:https://www.nature.com/articles/nprot.2017.024

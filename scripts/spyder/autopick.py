@@ -35,7 +35,6 @@ n_locs,image_render=picasso.render.render(
 ############################################################# Set parameters
 render_box = 9
 render_mng = 300
-
 pick_diameter=2
 
 ############################################################## Automated pick detection
