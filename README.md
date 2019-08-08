@@ -73,6 +73,11 @@ Go to the [pickprops&filter notebook](/scripts/notebooks/pickprops&filter.ipynb)
 Go to the 
 
 
+### Remark
+Sometimes the notebooks cannot be rendered by GitHub. Try the following work-around:
+1. Open https://nbviewer.jupyter.org/
+2. Paste the link to the notbook on GitHub, e.g. https://github.com/schwille-paint/lbFCS/blob/master/scripts/notebooks/autopick.ipynb 
+
 [paint]:https://www.nature.com/articles/nprot.2017.024
 [paper]:http://not-known-yet.com
 [conda]:https://docs.conda.io/projects/conda/en/latest/user-guide/getting-started.html
