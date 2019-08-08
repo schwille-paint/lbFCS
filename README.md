@@ -44,7 +44,7 @@ The following picture shows the standard parameters used and the typical look of
 
 <img src="/docs/figures/localize.png" alt="principle" width="400">
 
-The shown paramters apply to the standard conditions of our setup & sample and might hence differ under other circumstances. In general the follwing rules should apply for the selections of localization parameters with picasso.localize
+The shown paramters apply to the standard conditions of our setup & sample and might hence differ under other circumstances. In general the following rules should apply for a reasonable selection of localization parameters with picasso.localize
    * Set the box size to the minimum length in which the PSF of your microscope fits in 
    * Set the minimum net gradient low enough so that every spot that can be detected by eye is also detected by picasso.localize.  
    * Set the correct photon conversion parameters for your camera
