@@ -1,2 +1,4 @@
 __pycache__/
 .ipynb_checkpoints/
+/picasso/__pycache__
+/lbfcs/__pycache__

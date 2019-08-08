@@ -48,15 +48,11 @@ def _fit(df,df_stats):
     import lbfcs.varfuncs as varfuncs
     importlib.reload(varfuncs)
     
-    #### Which statistical quantity is used for fitting
-    center_lbfcs='mean'
-    center_qpaint='50%'
-
     #### Get ariables for start paramter estimates
     minc=df_stats.conc.min()
     maxc=df_stats.conc.max()
-    tau_minc=df_stats.loc[df_stats.conc==minc,('mono_tau',center_lbfcs)].mean()
-    tau_maxc=df_stats.loc[df_stats.conc==maxc,('mono_tau',center_lbfcs)].mean()
+    tau_minc=df_stats.loc[df_stats.conc==minc,('mono_tau','mean')].mean()
+    tau_maxc=df_stats.loc[df_stats.conc==maxc,('mono_tau','mean')].mean()
     minc=minc*1e-9 # Convert: [nM]->[M]
     maxc=maxc*1e-9 # Convert: [nM]->[M]
     
@@ -65,19 +61,27 @@ def _fit(df,df_stats):
     
     #### mono_tau vs c (lbFCS)
     p0=[koff,kon]
-    popt_lbfcs,pcov_lbfcs=curve_fit(varfuncs.tauc_of_c,
+    popt_lbfcs,pcov_lbfcs=curve_fit(varfuncs.tau_of_c,
                              df_stats.conc*1e-9,
-                             df_stats.loc[:,('mono_tau',center_lbfcs)],
+                             df_stats.loc[:,('mono_tau','mean')],
                              p0=p0,
                              sigma=None,
                              absolute_sigma=False)
-         
+    #### 1/mono_A vs c
+    p0=[kon/koff,1e-3]
+    popt_lbfcsA,pcov_lbfcsA=curve_fit(varfuncs.Ainv_of_c,
+                          df_stats.conc*1e-9,
+                          1/df_stats.loc[:,('mono_A','50%')],
+                          p0=p0,
+                          sigma=None,
+                          absolute_sigma=True)
+    
     ##### tau_d vs c (Picasso)
     p0=[koff,1e-3]
     try:
         popt_qpaint,pcov_qpaint=curve_fit(varfuncs.taudinv_of_c,
                           df_stats.conc*1e-9,
-                          1/df_stats.loc[:,('tau_d',center_qpaint)],
+                          1/df_stats.loc[:,('tau_d','50%')],
                           p0=p0,
                           sigma=None,
                           absolute_sigma=False)
@@ -85,9 +89,9 @@ def _fit(df,df_stats):
         popt_qpaint=[0,0]
         
     #### Assign fit results to df_fit
-    df_fit=pd.DataFrame([],index=['lbfcs','qpaint'])
-    df_fit=df_fit.assign(popt0=[popt_lbfcs[0],popt_qpaint[0]])
-    df_fit=df_fit.assign(popt1=[popt_lbfcs[1],popt_qpaint[1]])
+    df_fit=pd.DataFrame([],index=['lbfcs','lbfcsA','qpaint'])
+    df_fit=df_fit.assign(popt0=[popt_lbfcs[0],popt_lbfcsA[0],popt_qpaint[0]])
+    df_fit=df_fit.assign(popt1=[popt_lbfcs[1],popt_lbfcsA[1],popt_qpaint[1]])
         
     #### Assign number of docking sites to df
     koff=df_fit.loc['lbfcs','popt0'] # [Hz]
@@ -105,113 +109,71 @@ def _fit(df,df_stats):
 
 #%%
 def _plot(df_stats,df_fit):
-    
-    #### Which statistical quantity
-    center_tau='mean'
-    low_tau='std'
-    up_tau='std'
-    center_A='50%'
-    low_A='25%'
-    up_A='75%'
-    
+       
     import matplotlib.pyplot as plt
-    import varfuncs
+    import lbfcs.varfuncs as varfuncs
+    import lbfcs.plot_styler as styler
     
-    f=plt.figure(num=11,figsize=[7,6])
-    f.subplots_adjust(bottom=0.1,top=0.96,left=0.1,right=0.99,wspace=0.3,hspace=0.3)
+    f=plt.figure(num=11,figsize=[4,9])
+    f.subplots_adjust(bottom=0.08,top=0.98,left=0.25,right=0.95,hspace=0.25)
     f.clear()
     
     ################################################ mono_tau vs concentration
     field='mono_tau'
     x=df_stats.conc
     x_inter=np.arange(0,x.max()+5,0.1)
-    y=df_stats.loc[:,(field,center_tau)]
-    yerr=[df_stats.loc[:,(field,low_tau)],#/np.sqrt(df_stats.groups),
-                       df_stats.loc[:,(field,up_tau)]]#/np.sqrt(df_stats.groups)]
-    popt=df_fit.loc['tau_conc',:]
+    y=df_stats.loc[:,(field,'mean')]
+    yerr=df_stats.loc[:,(field,'std')]
+    popt=df_fit.loc['lbfcs',:]
     
-    ax=f.add_subplot(221)  
-    ax.errorbar(x,y,yerr=yerr,fmt='o',label='data')
-    ax.plot(x_inter,varfuncs.tauc_of_c(x_inter*1e-9,*popt),'-',c='r',lw=2,label='fit')
+    ax=f.add_subplot(311)  
+    ax.errorbar(x,y,yerr=yerr,fmt='o',label='data',c='k')
+    ax.plot(x_inter,varfuncs.tau_of_c(x_inter*1e-9,*popt),'-',c='r',lw=2,label='fit')
+    
+    styler.ax_styler(ax)
+    ax.set_xlim(0,x_inter[-1])
     ax.set_xlabel('Concentration (nM)')
-    ax.set_ylabel(r'$\tau_c$ (s)')
+    ax.set_ylabel(r'$\langle\tau\rangle$ (s)')
     ax.legend(loc='upper right')
     
     ################################################ 1/mono_A vs concentration
     field='mono_A'
     x=df_stats.conc
     x_inter=np.arange(0,x.max()+5,0.1)
-    y=1/df_stats.loc[:,(field,center_A)]
-    yerr=[df_stats.loc[:,(field,low_A)]/df_stats.loc[:,(field,center_A)]**2,
-          df_stats.loc[:,(field,up_A)]/df_stats.loc[:,(field,center_A)]**2]
-    popt=df_fit.loc['A_conc',:]
+    y=1/df_stats.loc[:,(field,'50%')]
+    yerr=[df_stats.loc[:,(field,'25%')]/df_stats.loc[:,(field,'50%')]**2,
+          df_stats.loc[:,(field,'75%')]/df_stats.loc[:,(field,'50%')]**2]
+    popt=df_fit.loc['lbfcsA',:]
     
-    ax=f.add_subplot(222)
-    ax.errorbar(x,y,yerr=yerr,fmt='o',label='data')
+    ax=f.add_subplot(312)
+    ax.errorbar(x,y,yerr=yerr,fmt='o',label='data',c='k')
     ax.plot(x_inter,varfuncs.Ainv_of_c(x_inter*1e-9,*popt),'-',c='r',lw=2,label='fit')
     ax.axhline(0,ls='-',lw=1,c='k')
-    ax.axvline(0,ls='-',lw=1,c='k')
+    
+    styler.ax_styler(ax)
+    ax.set_xlim(0,x_inter[-1])
     ax.set_xlabel('Concentration (nM)')
     ax.set_ylabel(r'$1/A$ (a.u.)')
-    ax.legend(loc='upper center')
-    
-    ################################################ mono_tau vs 1/mono_A
-    field='mono_tau'
-    y=df_stats.loc[:,(field,center_tau)]
-    yerr=[df_stats.loc[:,(field,low_tau)],df_stats.loc[:,(field,up_tau)]]
-    field='mono_A'
-    x=1/df_stats.loc[:,(field,center_A)]
-    xerr=[df_stats.loc[:,(field,low_A)]/df_stats.loc[:,(field,center_A)]**2,
-          df_stats.loc[:,(field,up_A)]/df_stats.loc[:,(field,center_A)]**2]
-    x_inter=np.arange(0,x.max()+0.2,0.1)
-    popt=df_fit.loc['tau_A',:]
-    
-    ax=f.add_subplot(223)
-    ax.errorbar(x,y,xerr=xerr,yerr=yerr,fmt='o',c='k',label='data')
-    ax.plot(x_inter,varfuncs.tauc_of_Ainv(x_inter,*popt),'-',c='r',lw=2,label='fit')
-    ax.set_xlabel(r'$1/A$ (a.u)')
-    ax.set_ylabel(r'$\tau_c$ (s)')
-    ax.legend(loc='upper right')
-    
+    ax.legend(loc='upper left')
+      
     ###############################################################  1/fit_taud vs conc
-    ax=f.add_subplot(224)
-    
-    field='fit_taud'
-    x=df_stats.conc
-    x_inter=np.arange(0,x.max()+5,0.1)
-    y=1/df_stats[field]
-    popt=df_fit.loc['taud_conc',:]
-    
-    ax.errorbar(x,y,fmt='o',c='r',label='ac')
-    ax.plot(x_inter,varfuncs.taudinv_of_c(x_inter*1e-9,*popt),'-',c='r',lw=2,label=None)
-    
+    ax=f.add_subplot(313)
+        
     field='tau_d'
     x=df_stats.conc
     x_inter=np.arange(0,x.max()+5,0.1)
-    y=1/df_stats[(field,center_A)]
-    popt=df_fit.loc['taud_pic',:]
+    y=1/df_stats[(field,'50%')]
+    yerr=[df_stats.loc[:,(field,'25%')]/df_stats.loc[:,(field,'50%')]**2,
+          df_stats.loc[:,(field,'75%')]/df_stats.loc[:,(field,'50%')]**2]
+    popt=df_fit.loc['qpaint',:]
     
-    ax.errorbar(x,y,fmt='o',c='b',label='pic')
-    ax.plot(x_inter,varfuncs.taudinv_of_c(x_inter*1e-9,*popt),'-',c='b',lw=2,label=None)
-    
+    ax.errorbar(x,y,yerr=yerr,fmt='o',label='data',c='k')
+    ax.plot(x_inter,varfuncs.taudinv_of_c(x_inter*1e-9,*popt),'-',c='b',lw=2,label='fit')
     ax.axhline(0,ls='-',lw=1,c='k')
-    ax.axvline(0,ls='-',lw=1,c='k')
+   
+    styler.ax_styler(ax)
+    ax.set_xlim(0,x_inter[-1])
     ax.set_xlabel('Concentration (nM)')
     ax.set_ylabel(r'$1/\tau_d$ (Hz)')
-    ax.legend(loc='upper center')
+    ax.legend(loc='upper left')
     
-#%%    
-def _remove_percentile(df,conc,field,p,remove='both'):
-    
-    #### Find thresholds
-    crit_low=np.percentile(df.loc[df.conc==conc,field],p)
-    crit_up=np.percentile(df.loc[df.conc==conc,field],100-p)
-    
-    if remove=='both':
-        istrue=(df.conc==conc)&((df.loc[:,field]<crit_low)|((df.loc[:,field]>crit_up)))
-    elif remove=='low':
-        istrue=(df.conc==conc)&(df.loc[:,field]<crit_low)
-    elif remove=='up':
-        istrue=(df.conc==conc)&(df.loc[:,field]>crit_up)
-        
-    return df.drop(df.loc[istrue].index)

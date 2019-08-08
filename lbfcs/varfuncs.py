@@ -74,8 +74,8 @@ def gaussian_2D(xdata_tuple, amplitude, xo, yo, sigma_x, sigma_y, theta, offset)
     return g.ravel()
 
 #%%
-#### Hybridization kinetics
-def tauc_of_c(c,koff,kon):
+#### Hybridization kinetics for c-series
+def tau_of_c(c,koff,kon):
     tauc=1/(koff+kon*c)
     return tauc
 
@@ -87,13 +87,6 @@ def taudinv_of_c(c,slope,offset=0.):
     taudinv=slope*c+offset
     return taudinv
 
-def tauc_of_Ainv(Ainv,koff,N=1):
-    tauc=(1/koff)*(1/(1+Ainv/N))
-    return tauc
 
-def taud_of_tauc(tauc,koff):
-    taub=1/koff
-    taud=(taub*tauc)/(taub-tauc)
-    return taud
 
 

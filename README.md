@@ -11,16 +11,16 @@ with DNA-PAINT'][paper]).
 * [Usage](#usage)
 
 ## Installation
-1. Create a [conda][conda] environment with the following commands:
-```
-conda create --name lbFCS python=3.5
-conda activate lbFCS
-conda install h5py matplotlib numba numpy scipy pyqt=4 pyyaml scikit-learn colorama tqdm spyder pandas dask spyder fastparquet pytables
-pip install lmfit
-pip install jupyterlab
-```
+1. Create a [conda][conda] environment ``conda create --name lbFCS python=3.5``
 
-2. Clone the lbFCS repository from github
+2. Activate the environment ``conda activate lbFCS``
+
+3. Install necessary packages 
+    * ``conda install h5py matplotlib numba numpy scipy pyqt=4 pyyaml scikit-learn colorama tqdm spyder pandas dask spyder fastparquet pytables``
+    * ``pip install lmfit``
+    * ``pip install jupyterlab``
+
+4. [Clone](https://help.github.com/en/articles/cloning-a-repository) the lbFCS repository
 
 3. Let iPython know where it can find the lbFCS repository (for Jupyter Notebook or Spyder)
    * Browse to ~/.ipython/profile_default in your home directory
@@ -40,9 +40,11 @@ Localize DNA-PAINT raw-data aquired under low exitation intensities (approx. 1e-
 The following picture shows the standard parameters used and the typical look of our raw data. 
 ![localize](/docs/figures/localize.PNG)
 
-The box size should be set to the minimum length in which the PSF of your microscope fits in. 
-The minimum net gradient should be be chosen low enough so that every spot that can be detected by eye is also detected by localize.  
-Notice that the photon conversion parameters might differ depending on your camera model. 
+The shown paramters apply to the standard conditions of our setup & sample and might hence differ under other circumstances. In general the follwing rules should apply for the selections of localization parameters with picasso.localize:
+    * Set the box size to the minimum length in which the PSF of your microscope fits in 
+    * Set the minimum net gradient low enough so that every spot that can be detected by eye is also detected by picasso.localize.  
+    * Set the correct photon conversion parameters for your camera
+    
 Afer you adjusted all the parameters localize by choosing >Analyze>Localize. A '_locs.hdf5' file is created in the same folder as the raw-data that is used for further analysis.
 
 ### 2. Undrift
@@ -51,12 +53,13 @@ Therefore drag and drop the '_locs.hdf5' file into the render GUI and choose >Po
 ![undrift](/docs/figures/undrift.PNG)
 
 An undrifted '_locs_render.hdf5' file is created in the same folder as the raw-data that is used for further analysis.
+
 ### 3. Autopick
 
 ### 4. Render: Picked
 
 ### 5. Pickprops
-See this [notebook](/scripts/notebooks/call_autopick.ipynb)
+See this [notebook](/scripts/notebooks/pickprops&filter.ipynb)
 
 
 [paint]:https://www.nature.com/articles/nprot.2017.024
