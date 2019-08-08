@@ -2,7 +2,7 @@
 
 ## Description
 Python package to evaluate [DNA-PAINT][paint] SMLM data via autocorrelation analysis for self-calibrating counting of molecules (according to ['Self-calibrating molecular counting
-with DNA-PAINT'][paper]). Part of the [picasso](https://github.com/jungmannlab/picasso) code were used for this project.
+with DNA-PAINT'][paper]). Parts of the [picasso](https://github.com/jungmannlab/picasso) code were used for this project.
 
 <img src="/docs/figures/principle.png" alt="principle" width="700">
 
