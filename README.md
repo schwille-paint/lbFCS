@@ -1,4 +1,4 @@
- |# lbFCS
+# lbFCS
 
 ## Description
 Python package to evaluate [DNA-PAINT][paint] SMLM data via autocorrelation analysis for self-calibrating counting of molecules (according to ['Self-calibrating molecular counting
@@ -8,7 +8,6 @@ with DNA-PAINT'][paper]).
 ## Table of contents
 * [Installation](#installation)
 * [Usage](#usage)
-   * [Localize](#1.localize)
 
 ## Installation
 1. Create a [conda][conda] environment ``conda create --name lbFCS python=3.5``
@@ -38,7 +37,8 @@ with DNA-PAINT'][paper]. For more information on the imaging modalities or sampl
 ### 1. Localize
 Localize DNA-PAINT raw-data aquired under low exitation intensities (approx. 10 kW/cm^2 with a frame rate of 5Hz used imager was labeled with Cy3B) using the [picasso.localize](https://picassosr.readthedocs.io/en/latest/localize.html) module. 
 The following picture shows the standard parameters used and the typical look of our raw data. 
-![localize](/docs/figures/localize.png)
+
+<img src="/docs/figures/localize.png" alt="principle" width="400">
 
 The shown paramters apply to the standard conditions of our setup & sample and might hence differ under other circumstances. In general the follwing rules should apply for the selections of localization parameters with picasso.localize
    * Set the box size to the minimum length in which the PSF of your microscope fits in 
@@ -50,7 +50,8 @@ Afer you adjusted all the parameters localize by choosing >Analyze>Localize. A '
 ### 2. Undrift
 Undrift the '_locs.hdf5' file using the [picasso.render ](https://picassosr.readthedocs.io/en/latest/render.html) module.
 Therefore drag and drop the '_locs.hdf5' file into the render GUI and choose >Postprocess>Undrift by RCC with a segmentation of 500. 
-![undrift](/docs/figures/undrift.png)
+
+<img src="/docs/figures/undrift.png" alt="principle" width="400">
 
 An undrifted '_locs_render.hdf5' file is created in the same folder as the raw-data that is used for further analysis.
 
