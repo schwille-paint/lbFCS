@@ -3,3 +3,4 @@ __pycache__/
 /picasso/__pycache__
 /lbfcs/__pycache__
 /scripts/notebooks/.ipynb_checkpoints
+.gitignore~
