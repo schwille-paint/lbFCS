@@ -70,7 +70,7 @@ Go to the [autopick notebook](/scripts/notebooks/autopick.ipynb)
 Go to the [pickprops&filter notebook](/scripts/notebooks/pickprops&filter.ipynb)
 
 ### 6. Concentration series
-Go to the [cseries notebook](/scripts/notebooks/cseries.ipynb)
+Go to the [c-series notebook](/scripts/notebooks/c-series.ipynb)
 
 
 ### Remark
