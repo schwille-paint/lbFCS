@@ -1,14 +1,14 @@
-# lbFCS
+ |# lbFCS
 
 ## Description
 Python package to evaluate [DNA-PAINT][paint] SMLM data via autocorrelation analysis for self-calibrating counting of molecules (according to ['Self-calibrating molecular counting
 with DNA-PAINT'][paper]). 
-
-![principle](/docs/figures/principle.png)
+<img src="/docs/figures/principle.png" alt="principle" width="700">
 
 ## Table of contents
 * [Installation](#installation)
 * [Usage](#usage)
+   * [Localize](#1.localize)
 
 ## Installation
 1. Create a [conda][conda] environment ``conda create --name lbFCS python=3.5``
