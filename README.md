@@ -13,6 +13,7 @@ with DNA-PAINT'][paper]).
    * [Autopick](#3-autopick)
    * [Render: Picked](#4-render-picked)
    * [Pickprops](#5-pickprops)
+   * [Concentration series](#6-concentrations-series)
 ## Installation
 1. Create a [conda][conda] environment ``conda create --name lbFCS python=3.5``
 
@@ -66,6 +67,9 @@ Go to the [autopick notebook](/scripts/notebooks/autopick.ipynb)
 
 ### 5. Pickprops
 Go to the [pickprops&filter notebook](/scripts/notebooks/pickprops&filter.ipynb)
+
+### 6. Concentration series
+Go to the 
 
 
 [paint]:https://www.nature.com/articles/nprot.2017.024
