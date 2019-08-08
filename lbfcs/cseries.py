@@ -148,7 +148,6 @@ def _plot(df_stats,df_fit):
     ax=f.add_subplot(312)
     ax.errorbar(x,y,yerr=yerr,fmt='o',label='data',c='k')
     ax.plot(x_inter,varfuncs.Ainv_of_c(x_inter*1e-9,*popt),'-',c='r',lw=2,label='fit')
-    ax.axhline(0,ls='-',lw=1,c='k')
     
     styler.ax_styler(ax)
     ax.set_xlim(0,x_inter[-1])
@@ -169,7 +168,6 @@ def _plot(df_stats,df_fit):
     
     ax.errorbar(x,y,yerr=yerr,fmt='o',label='data',c='k')
     ax.plot(x_inter,varfuncs.taudinv_of_c(x_inter*1e-9,*popt),'-',c='b',lw=2,label='fit')
-    ax.axhline(0,ls='-',lw=1,c='k')
    
     styler.ax_styler(ax)
     ax.set_xlim(0,x_inter[-1])
