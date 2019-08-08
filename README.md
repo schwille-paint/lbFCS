@@ -8,7 +8,11 @@ with DNA-PAINT'][paper]).
 ## Table of contents
 * [Installation](#installation)
 * [Usage](#usage)
-
+   * [Localize](#1-localize)
+   * [Undrift](#2-undrift)
+   * [Autopick](#3-autopick)
+   * [Render: Picked](#4-render-picked)
+   * [Pickprops](#5-pickprops)
 ## Installation
 1. Create a [conda][conda] environment ``conda create --name lbFCS python=3.5``
 
