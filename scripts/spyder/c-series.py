@@ -2,6 +2,7 @@
 import os #platform independent paths
 import pandas as pd 
 import importlib
+import sys
 # Load user defined functions
 import lbfcs.io as io
 import lbfcs.cseries as cseries
@@ -19,8 +20,9 @@ labels=['%4.1fnM-%i'%(c,r) for c,r in zip(cs,rs)]
 outliers=[]
 
 #### Saving
+save_results=False
 savedir='/fs/pool/pool-schwille-paint/Analysis/p04.lb-FCS/zz.Pm2-8nt/z.c-series/z.datalog'
-savename='N01_Gel_B_2B07_stock11'
+savename=os.path.splitext(os.path.basename(sys.argv[0]))[0]
 
 ############################################################## Define data
 dir_names=[]
@@ -48,24 +50,38 @@ X,X_stats,X_fit=cseries._fit(X.drop(outliers),X_stats.drop(outliers))
 
 #%%
 ############################################################## Saving
-X_stats.to_hdf(os.path.join(savedir,savename+'_stats.h5'),key='stats')
-X_fit.to_hdf(os.path.join(savedir,savename+'_fit.h5'),key='fit')
+if save_results:
+    X_stats.to_hdf(os.path.join(savedir,savename+'_stats.h5'),key='stats')
+    X_fit.to_hdf(os.path.join(savedir,savename+'_fit.h5'),key='fit')
 ############################################################## Plotting
+#### lbFCS standard plots
+cseries._plot(X_stats,X_fit)
 
-#%%
-#### Show histogram for expID
-expID='20.0nM-1'
-#f=plt.figure(num=10,figsize=[7,8])
-#f.subplots_adjust(left=0.1,right=0.99,bottom=0.04,top=0.95)
-#f.clear()
-#ax=f.add_subplot(111)
-#X.loc[expID,['std_frame','mean_frame',
-#                      'mono_tau','mono_A',
-#                      'N','tau_d']].hist(bins='fd',ax=ax)
+#### Print results
+print('lbFCS')
+print('    koff = %.2e'%(X_fit.loc['lbfcs','popt0']))
+print('    kon  = %.2e'%(X_fit.loc['lbfcs','popt1']))
+print('    N  = %.2f'%(X.N.median()))
+print('qPAINT')
+print('    kon  = %.2e'%(X_fit.loc['qpaint','popt0']))
 
-#### Kinetics plot
-kinetics._plot(X_stats,X_fit)
+#### Plot certain distributions
+import matplotlib.pyplot as plt
+import numpy as np
 
-print('koff = %.2e'%(X_fit.loc['tau_conc','popt0']))
-print('kon  = %.2e'%(X_fit.loc['tau_conc','popt1']))
-print('N  = %.2f'%(X.N.median()))
+field='mono_A'
+subset='20.0nM-1' # Certain measurement
+subset=X.conc>=1 # Boolean subset, e.g. imager concentration > 10nM
+
+bins='fd'
+#bins=np.arange(0,5,0.1)
+
+f=plt.figure(12,figsize=[4,3])
+f.subplots_adjust(bottom=0.2,top=0.95,left=0.2,right=0.95)
+f.clear()
+
+ax=f.add_subplot(111)
+ax.hist(X.loc[subset,field].dropna(),bins=bins,edgecolor='k',color='gray');
+#ax.set_xlim(0,5);
+ax.set_xlabel(field);
+ax.set_ylabel('Counts');

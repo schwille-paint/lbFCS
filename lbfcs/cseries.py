@@ -111,67 +111,120 @@ def _fit(df,df_stats):
 def _plot(df_stats,df_fit):
        
     import matplotlib.pyplot as plt
-    import lbfcs.varfuncs as varfuncs
-    import lbfcs.plot_styler as styler
     
     f=plt.figure(num=11,figsize=[4,9])
     f.subplots_adjust(bottom=0.08,top=0.98,left=0.25,right=0.95,hspace=0.25)
     f.clear()
     
     ################################################ mono_tau vs concentration
-    field='mono_tau'
-    x=df_stats.conc
-    x_inter=np.arange(0,x.max()+5,0.1)
-    y=df_stats.loc[:,(field,'mean')]
-    yerr=df_stats.loc[:,(field,'std')]
-    popt=df_fit.loc['lbfcs',:]
-    
-    ax=f.add_subplot(311)  
-    ax.errorbar(x,y,yerr=yerr,fmt='o',label='data',c='k')
-    ax.plot(x_inter,varfuncs.tau_of_c(x_inter*1e-9,*popt),'-',c='r',lw=2,label='fit')
-    
-    styler.ax_styler(ax)
-    ax.set_xlim(0,x_inter[-1])
-    ax.set_xlabel('Concentration (nM)')
-    ax.set_ylabel(r'$\langle\tau\rangle$ (s)')
-    ax.legend(loc='upper right')
+    ax=f.add_subplot(311)
+    ax=_mono_tau_onax(ax,df_stats,df_fit)
     
     ################################################ 1/mono_A vs concentration
-    field='mono_A'
-    x=df_stats.conc
-    x_inter=np.arange(0,x.max()+5,0.1)
-    y=1/df_stats.loc[:,(field,'50%')]
-    yerr=[df_stats.loc[:,(field,'25%')]/df_stats.loc[:,(field,'50%')]**2,
-          df_stats.loc[:,(field,'75%')]/df_stats.loc[:,(field,'50%')]**2]
-    popt=df_fit.loc['lbfcsA',:]
-    
     ax=f.add_subplot(312)
-    ax.errorbar(x,y,yerr=yerr,fmt='o',label='data',c='k')
-    ax.plot(x_inter,varfuncs.Ainv_of_c(x_inter*1e-9,*popt),'-',c='r',lw=2,label='fit')
-    
-    styler.ax_styler(ax)
-    ax.set_xlim(0,x_inter[-1])
-    ax.set_xlabel('Concentration (nM)')
-    ax.set_ylabel(r'$1/A$ (a.u.)')
-    ax.legend(loc='upper left')
+    ax=_mono_A_onax(ax,df_stats,df_fit)
       
     ###############################################################  1/fit_taud vs conc
     ax=f.add_subplot(313)
-        
-    field='tau_d'
+    ax=_tau_d_onax(ax,df_stats,df_fit,color='b')
+    
+#%%
+def _prep_mono_tau(df_stats,df_fit):
+    import lbfcs.varfuncs as varfuncs
+    
+    field='mono_tau'
+    
     x=df_stats.conc
-    x_inter=np.arange(0,x.max()+5,0.1)
-    y=1/df_stats[(field,'50%')]
+    y=df_stats.loc[:,(field,'mean')]
+    yerr=df_stats.loc[:,(field,'std')]
+    
+    popt=df_fit.loc['lbfcs',:]
+    xfit=np.arange(0,30,0.1)
+    yfit=varfuncs.tau_of_c(xfit*1e-9,*popt)
+    
+    return x,y,yerr,xfit,yfit
+    
+#%% 
+def _mono_tau_onax(ax,df_stats,df_fit,color='red',label_data='data',label_fit='fit'):
+    import lbfcs.plot_styler as styler
+    
+    #### Get data to plot
+    x,y,yerr,xfit,yfit=_prep_mono_tau(df_stats,df_fit)
+    
+    #### Plot data
+    ax.errorbar(x,y,yerr=yerr,fmt='o',label=label_data,c=color)
+    ax.plot(xfit,yfit,'-',label=label_fit,c=color,lw=2)
+    
+    styler.ax_styler(ax)
+    ax.set_xlim(0,25)
+    ax.set_xlabel('Concentration (nM)')
+    ax.set_ylabel(r'$\langle\tau\rangle$ (s)')
+    ax.legend(loc='upper right')
+       
+#%%
+def _prep_mono_A(df_stats,df_fit):
+    import lbfcs.varfuncs as varfuncs
+    
+    field='mono_A'
+    
+    x=df_stats.conc
+    y=1/df_stats.loc[:,(field,'50%')]
     yerr=[df_stats.loc[:,(field,'25%')]/df_stats.loc[:,(field,'50%')]**2,
           df_stats.loc[:,(field,'75%')]/df_stats.loc[:,(field,'50%')]**2]
-    popt=df_fit.loc['qpaint',:]
     
-    ax.errorbar(x,y,yerr=yerr,fmt='o',label='data',c='k')
-    ax.plot(x_inter,varfuncs.taudinv_of_c(x_inter*1e-9,*popt),'-',c='b',lw=2,label='fit')
-   
+    popt=df_fit.loc['lbfcsA',:]
+    xfit=np.arange(0,30,0.1)
+    yfit=varfuncs.Ainv_of_c(xfit*1e-9,*popt)
+    
+    return x,y,yerr,xfit,yfit
+ 
+#%%
+def _mono_A_onax(ax,df_stats,df_fit,color='red',label_data='data',label_fit='fit'):
+    import lbfcs.plot_styler as styler
+    
+    #### Get data to plot
+    x,y,yerr,xfit,yfit=_prep_mono_A(df_stats,df_fit)
+    
+    #### Plot data
+    ax.errorbar(x,y,yerr=yerr,fmt='o',label=label_data,c=color)
+    ax.plot(xfit,yfit,'-',label=label_fit,c=color,lw=2)
+    
     styler.ax_styler(ax)
-    ax.set_xlim(0,x_inter[-1])
+    ax.set_xlim(0,25)
+    ax.set_xlabel('Concentration (nM)')
+    ax.set_ylabel(r'$1/A$ (a.u.)')
+    ax.legend(loc='upper left')
+    
+#%%
+def _prep_tau_d(df_stats,df_fit):
+    import lbfcs.varfuncs as varfuncs
+    
+    field='tau_d'
+    
+    x=df_stats.conc
+    y=1/df_stats.loc[:,(field,'50%')]
+    yerr=[df_stats.loc[:,(field,'25%')]/df_stats.loc[:,(field,'50%')]**2,
+          df_stats.loc[:,(field,'75%')]/df_stats.loc[:,(field,'50%')]**2]
+    
+    popt=df_fit.loc['qpaint',:]
+    xfit=np.arange(0,30,0.1)
+    yfit=varfuncs.taudinv_of_c(xfit*1e-9,*popt)
+    
+    return x,y,yerr,xfit,yfit
+ 
+#%%
+def _tau_d_onax(ax,df_stats,df_fit,color='red',label_data='data',label_fit='fit'):
+    import lbfcs.plot_styler as styler
+    
+    #### Get data to plot
+    x,y,yerr,xfit,yfit=_prep_tau_d(df_stats,df_fit)
+    
+    #### Plot data
+    ax.errorbar(x,y,yerr=yerr,fmt='o',label=label_data,c=color)
+    ax.plot(xfit,yfit,'-',label=label_fit,c=color,lw=2)
+    
+    styler.ax_styler(ax)
+    ax.set_xlim(0,25)
     ax.set_xlabel('Concentration (nM)')
     ax.set_ylabel(r'$1/\tau_d$ (Hz)')
     ax.legend(loc='upper left')
-    
