@@ -8,8 +8,8 @@ import lbfcs.autopick as autopick
 plt.style.use('~/lbFCS/styles/paper.mplstyle')
 
 ############################################################## Define data
-render_dir='/fs/pool/pool-schwille-paint/Data/p10.ClickReceptor/19-08-06_id141_S1-TCO-TETRA-Pm2/141attachedS1-TCO-TETRA_Pm2-20nM_p35uW_1/19-08-06_FS'
-render_name='141attachedS1-TCO-TETRA_Pm2-20nM_p35uW_1_MMStack_Pos0.ome_locs_render.hdf5'
+render_dir='/fs/pool/pool-schwille-paint/Data/p10.ClickReceptor/19-08-15_id155_checks/id155-TCO-TET_S1-S2-20nM_Pm2-20nM_p35uW_green_1/19-08-15_FS'
+render_name='id155-TCO-TET_S1-S2-20nM_Pm2-20nM_p35uW_green_1_MMStack_Pos0.ome_locs_render.hdf5'
 
 ############################################################## Load data
 #### Paths

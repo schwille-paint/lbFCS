@@ -77,7 +77,7 @@ def _fit(df,df_stats):
                           absolute_sigma=True)
     
     ##### tau_d vs c (Picasso)
-    p0=[koff,1e-3]
+    p0=[kon,1e-3]
     try:
         popt_qpaint,pcov_qpaint=curve_fit(varfuncs.taudinv_of_c,
                           df_stats.conc*1e-9,

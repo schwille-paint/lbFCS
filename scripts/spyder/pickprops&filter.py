@@ -2,29 +2,26 @@
 # Sets input parameters and defines path to data
 #
 ############################################################# Set parameters
-conc=[2.5,5,10,20] # Imager concentration [nM]
+conc=[5]*5 # Imager concentration [nM]
 ignore=1 # Ignore_dark value for qPAINT analysis
 savename_ext='_props_ig%i'%(ignore) # File extension for processed file
 
 #### Advanced 
 omit_dist=True # If True all lists will be excluded for saving (recommended) 
-kin_filter=True # If True automatic filtering will be applied (recommended)
-NoPartitions=30 # Number of partitions for dask parallel computing
+kin_filter=False # If True automatic filtering will be applied (recommended)
+NoPartitions=1 # Number of partitions for dask parallel computing
 
 
 ############################################################## Define data
 dir_names=[]
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-06-07_N=48/id135_2-5nM_p35uW_1/19-06-07_JS/'])
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-06-07_N=48/id135_5nM_p35uW_1/19-06-07_JS/'])
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-06-07_N=48/id135_10nM_p35uW_1/19-06-07_JS/'])
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-06-07_N=48/id135_20nM_p35uW_1/19-06-07_JS/'])
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/z.simulations/19-08-20_FS_ralf/lbfcs_copasi']*5)
 
 file_names=[]
-file_names.extend(['id135_2-5nM_p35uW_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
-file_names.extend(['id135_5nM_p35uW_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
-file_names.extend(['id135_10nM_p35uW_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
-file_names.extend(['id135_20nM_p35uW_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
-
+file_names.extend(['simulation_10_locs_picked.hdf5'])
+file_names.extend(['simulation_20_locs_picked.hdf5'])
+file_names.extend(['simulation_30_locs_picked.hdf5'])
+file_names.extend(['simulation_40_locs_picked.hdf5'])
+file_names.extend(['simulation_50_locs_picked.hdf5'])
 
 #################################################### Load packages
 import os #platform independent paths
@@ -93,6 +90,8 @@ for i in range(0,len(path)):
 #%%
 #import matplotlib.pyplot as plt
 #import lbfcs.varfuncs as varfuncs
+#import importlib
+#importlib.reload(varfuncs)
 #import numpy as np
 #plt.style.use('~/qPAINT/styles/paper.mplstyle')
 #
@@ -102,7 +101,7 @@ for i in range(0,len(path)):
 #
 ##### Autocorrelation
 #ax=f.add_subplot(311)
-#for g in [49]:
+#for g in [7]:
 #    print(locs_props.loc[g,'mono_tau'],locs_props.loc[g,'mono_tau_lin'])
 #    ax.plot(locs_props.loc[g,'tau'],
 #            varfuncs.ac_monoexp(locs_props.loc[g,'tau'],locs_props.loc[g,'mono_A'],locs_props.loc[g,'mono_tau']),
@@ -116,12 +115,19 @@ for i in range(0,len(path)):
 ##### Trace
 #ax=f.add_subplot(312)
 #ax.plot(locs_props.loc[g,'trace'])
-#ax.set_ylim(0,1000)
+#ax.set_ylim(0,20)
 #
 ##### tau_d_dist
 #ax=f.add_subplot(313)
 #x=varfuncs.get_ecdf(locs_props.loc[g,'tau_d_dist'])[0]
 #y=varfuncs.get_ecdf(locs_props.loc[g,'tau_d_dist'])[1]
-#x_fit=np.arange(0,np.max(x),0.1)
+#x_fit=np.linspace(0,x[-1],100)
 #ax.plot(x,y)
-#ax.plot(x_fit,varfuncs.ecdf_exp(x_fit,locs_props.loc[g,'tau_d']))
+##ax.plot(x_fit,varfuncs.ecdf_exp(x_fit,locs_props.loc[g,'tau_d'],locs_props.loc[g,'tau_d_off'],locs_props.loc[g,'tau_d_a']))
+#ax.plot(x_fit,
+#        varfuncs.ecdf_exp(x_fit,
+#                          np.median(x),
+#                          np.min(y),
+#                          1-np.min(y),
+#                          np.min(x))
+#        )

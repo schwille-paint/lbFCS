@@ -234,7 +234,7 @@ def get_tau(df,ignore=1):
     n_events=float(np.size(tau_b_dist)) # Number of binding events
 
     ################ Extract tau's
-    if n_events<=5: # If n_events <= 5 --> Set all parameters to mean of distribution
+    if n_events<=2: # If n_events <= 3 --> Set all parameters to mean of distribution
         # Bright time
         tau_b=np.mean(tau_b_dist)
         tau_b_lin=np.mean(tau_b_dist)
@@ -242,7 +242,7 @@ def get_tau(df,ignore=1):
         tau_d=np.mean(tau_d_dist)
         tau_d_lin=np.mean(tau_d_dist)
         
-    elif n_events>5: # If n_events > 5 --> Fitting of ECDF with exponential function, calculate median
+    elif n_events>2: # If n_events > 3 --> Fitting of ECDF with exponential function, calculate median
         # Bright time
         tau_b,tau_b_lin=fit_tau(tau_b_dist)
         # Dark time
@@ -276,26 +276,27 @@ def fit_tau(tau_dist):
     tau_bins,tau_ecdf=varfuncs.get_ecdf(tau_dist)
     
     ####################################################### Define start paramter
-    idx=np.abs(tau_ecdf-(1-np.exp(-1))).argmin() # Find idx in ecfd closest to 1-e^-1 value
-    p0=tau_bins[idx] # Start value = bin at which cfd closest to 1-e^-1 value
+#    idx=np.abs(tau_ecdf-(1-np.exp(-1))).argmin() # Find idx in ecfd closest to 1-e^-1 value
+    p0=np.zeros(1)
     
+    p0[0]=np.mean(tau_bins)
     ####################################################### Fit ECDF
     try:
         # Fit exponential directly
         tau,pcov=scipy.optimize.curve_fit(varfuncs.ecdf_exp,tau_bins,tau_ecdf,p0) 
         tau=tau[0]
         # Fit linearized data, omitt last value of ECDF du to linearization with log function
-        tau_lin,pcov=scipy.optimize.curve_fit(varfuncs.ecdf_exp_lin,tau_bins[0:-1],-np.log(np.abs(1-tau_ecdf[0:-1])),p0)
+        tau_lin,pcov=scipy.optimize.curve_fit(varfuncs.ecdf_exp_lin,tau_bins[0:-1],-np.log(np.abs(1-tau_ecdf[0:-1])),p0[0])
         tau_lin=tau_lin[0]
     except RuntimeError:
-        tau=p0
-        tau_lin=p0
+        tau=p0[0]
+        tau_lin=p0[0]
     except ValueError:
-        tau=p0
-        tau_lin=p0
+        tau=p0[0]
+        tau_lin=p0[0]
     except TypeError:
-        tau=p0
-        tau_lin=p0
+        tau=p0[0]
+        tau_lin=p0[0]
         
     return tau,tau_lin
 
