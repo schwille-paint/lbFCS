@@ -2,25 +2,20 @@
 # Sets input parameters and defines path to data
 #
 ############################################################# Set parameters
-conc=[5]*5 # Imager concentration [nM]
+conc=[5] # Imager concentration [nM]
 ignore=1 # Ignore_dark value for qPAINT analysis
-savename_ext='_props_ig%i'%(ignore) # File extension for processed file
+savename_ext='_props-new_ig%i'%(ignore) # File extension for processed file
 
 #### Advanced 
 omit_dist=True # If True all lists will be excluded for saving (recommended) 
-kin_filter=False # If True automatic filtering will be applied (recommended)
-NoPartitions=1 # Number of partitions for dask parallel computing
-
+kin_filter=True # If True automatic filtering will be applied (recommended)
+NoPartitions=30 # Number of partitions for dask parallel computing
 
 ############################################################## Define data
 dir_names=[]
 dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/z.simulations/19-08-20_FS_ralf/lbfcs_copasi']*5)
 
 file_names=[]
-file_names.extend(['simulation_10_locs_picked.hdf5'])
-file_names.extend(['simulation_20_locs_picked.hdf5'])
-file_names.extend(['simulation_30_locs_picked.hdf5'])
-file_names.extend(['simulation_40_locs_picked.hdf5'])
 file_names.extend(['simulation_50_locs_picked.hdf5'])
 
 #################################################### Load packages
@@ -95,6 +90,7 @@ for i in range(0,len(path)):
 #import numpy as np
 #plt.style.use('~/qPAINT/styles/paper.mplstyle')
 #
+############################################ Individual picks
 #f=plt.figure(num=12,figsize=[4,3])
 #f.subplots_adjust(bottom=0.1,top=0.99,left=0.2,right=0.99)
 #f.clear()
@@ -123,11 +119,18 @@ for i in range(0,len(path)):
 #y=varfuncs.get_ecdf(locs_props.loc[g,'tau_d_dist'])[1]
 #x_fit=np.linspace(0,x[-1],100)
 #ax.plot(x,y)
-##ax.plot(x_fit,varfuncs.ecdf_exp(x_fit,locs_props.loc[g,'tau_d'],locs_props.loc[g,'tau_d_off'],locs_props.loc[g,'tau_d_a']))
-#ax.plot(x_fit,
-#        varfuncs.ecdf_exp(x_fit,
-#                          np.median(x),
-#                          np.min(y),
-#                          1-np.min(y),
-#                          np.min(x))
-#        )
+#ax.plot(x_fit,varfuncs.ecdf_exp(x_fit,locs_props.loc[g,'tau_d'],locs_props.loc[g,'tau_d_off'],locs_props.loc[g,'tau_d_a']))
+#
+#ax.set_xlim(0,x.max()+1)
+#ax.set_ylim(0,y.max()+0.1)
+#
+#
+######################################## Distributions
+#field='tau_d'
+#bins=np.arange(0,20,1)
+#
+#f=plt.figure(num=11,figsize=[4,3])
+#f.subplots_adjust(bottom=0.1,top=0.99,left=0.2,right=0.99)
+#f.clear()
+#ax=f.add_subplot(111)
+#ax.hist(locs_props.loc[:,field].dropna(),bins=bins,color='gray',edgecolor='k');

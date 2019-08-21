@@ -164,7 +164,7 @@ def fit_ac_mono_lin(ac):
     
     return popt[0],popt[1]
 #%%
-def get_tau(df,ignore=1):
+def get_tau(df,ignore=1,mode='ralf'):
     """ 
     1) Computes bright, dark-time distributions and number of events a la Picasso
     2) Least square fit of function f(tau)=1-exp(-t/tau) to experimental continuous distribution function (ECDF) 
@@ -183,7 +183,7 @@ def get_tau(df,ignore=1):
     -------
     s_out : pandas.Series
         Length: 9
-        Column:
+        Column:0
             'group' : int
         Index: 
             'tau_b_dist' : numpy.ndarray
@@ -211,10 +211,17 @@ def get_tau(df,ignore=1):
     ################################################################ Get tau_d distribution
     dframes=frames[1:]-frames[0:-1] # Get frame distances i.e. dark times
     dframes=dframes.astype(float) # Convert to float values for later multiplications
-    tau_d_dist=dframes[dframes>(ignore+1)] # Remove all dark times>ignore+1
+    
+    tau_d_dist=dframes-1 # 1) We have to substract -1 to get real dark frames, e.g. suppose it was bright at frame=2 and frame=4
+                         #    4-2=2 but there was actually only one dark frame.
+                         #
+                         # 2) Be aware that counting of gaps starts with first bright localization and ends with last
+                         #    since values before or after are anyway artificially shortened, i.e. one bright event means no dark time!
+    
+    tau_d_dist=tau_d_dist[tau_d_dist>(ignore)] # Remove all dark times>ignore
     tau_d_dist=np.sort(tau_d_dist) # Sorted tau_d distribution
  
-    ################################################################# Get tau_b_distribution
+    ################################################################ Get tau_b_distribution
     dframes[dframes<=(ignore+1)]=0 # Set (bright) frames to 0 that have nnext neighbor distance <= ignore+1
     dframes[dframes>1]=1 # Set dark frames to 1
     dframes[dframes<1]=np.nan # Set bright frames to NaN
@@ -234,27 +241,18 @@ def get_tau(df,ignore=1):
     n_events=float(np.size(tau_b_dist)) # Number of binding events
 
     ################ Extract tau's
-    if n_events<=2: # If n_events <= 3 --> Set all parameters to mean of distribution
-        # Bright time
-        tau_b=np.mean(tau_b_dist)
-        tau_b_lin=np.mean(tau_b_dist)
-        # Dark time
-        tau_d=np.mean(tau_d_dist)
-        tau_d_lin=np.mean(tau_d_dist)
-        
-    elif n_events>2: # If n_events > 3 --> Fitting of ECDF with exponential function, calculate median
-        # Bright time
-        tau_b,tau_b_lin=fit_tau(tau_b_dist)
-        # Dark time
-        tau_d,tau_d_lin=fit_tau(tau_d_dist)
+    # Bright time
+    tau_b,tau_b_off,tau_b_a=fit_tau(tau_b_dist,mode)
+    # Dark time
+    tau_d,tau_d_off,tau_d_a=fit_tau(tau_d_dist,mode)
 
     ###################################################### Assignment to series 
-    s_out=pd.Series({'tau_b_dist':tau_b_dist,'tau_b':tau_b,'tau_b_lin':tau_b_lin,'tau_b_mean':np.mean(tau_b_dist), # Bright times
-                     'tau_d_dist':tau_d_dist,'tau_d':tau_d,'tau_d_lin':tau_d_lin,'tau_d_mean':np.mean(tau_d_dist), # Dark times
+    s_out=pd.Series({'tau_b_dist':tau_b_dist,'tau_b':tau_b,'tau_b_off':tau_b_off,'tau_b_a':tau_b_a,'tau_b_mean':np.mean(tau_b_dist), # Bright times
+                     'tau_d_dist':tau_d_dist,'tau_d':tau_d,'tau_d_off':tau_d_off,'tau_d_a':tau_d_a,'tau_d_mean':np.mean(tau_d_dist), # Dark times
                      'n_events':n_events}) # Events
     return s_out    
 #%%     
-def fit_tau(tau_dist):
+def fit_tau(tau_dist,mode='ralf'):
     """ 
     Least square fit of function f(t)=1-exp(-t/tau) to experimental continuous distribution function (ECDF) of tau_dist
     -> help(varfuncs.get_ecdf) equivalent to:
@@ -276,29 +274,31 @@ def fit_tau(tau_dist):
     tau_bins,tau_ecdf=varfuncs.get_ecdf(tau_dist)
     
     ####################################################### Define start paramter
-#    idx=np.abs(tau_ecdf-(1-np.exp(-1))).argmin() # Find idx in ecfd closest to 1-e^-1 value
-    p0=np.zeros(1)
-    
-    p0[0]=np.mean(tau_bins)
+    p0=np.zeros(3)   
+    p0[0]=np.mean(tau_bins) # tau
+    p0[1]=np.min(tau_ecdf) # offset
+    p0[2]=np.max(tau_ecdf)-p0[1] # amplitude
     ####################################################### Fit ECDF
     try:
-        # Fit exponential directly
-        tau,pcov=scipy.optimize.curve_fit(varfuncs.ecdf_exp,tau_bins,tau_ecdf,p0) 
-        tau=tau[0]
-        # Fit linearized data, omitt last value of ECDF du to linearization with log function
-        tau_lin,pcov=scipy.optimize.curve_fit(varfuncs.ecdf_exp_lin,tau_bins[0:-1],-np.log(np.abs(1-tau_ecdf[0:-1])),p0[0])
-        tau_lin=tau_lin[0]
+        if mode=='ralf':
+            popt,pcov=scipy.optimize.curve_fit(varfuncs.ecdf_exp,tau_bins,tau_ecdf,p0) 
+            tau=popt[0]
+            off=popt[1]
+            a=popt[2]
+        else:
+            popt,pcov=scipy.optimize.curve_fit(varfuncs.ecdf_exp,tau_bins,tau_ecdf,p0[0]) 
+            tau=popt[0]
+            off=0
+            a=1
+            
     except RuntimeError:
-        tau=p0[0]
-        tau_lin=p0[0]
+        tau,off,a=np.nan,np.nan,np.nan
     except ValueError:
-        tau=p0[0]
-        tau_lin=p0[0]
+        tau,off,a=np.nan,np.nan,np.nan
     except TypeError:
-        tau=p0[0]
-        tau_lin=p0[0]
+        tau,off,a=np.nan,np.nan,np.nan
         
-    return tau,tau_lin
+    return tau,off,a
 
 #%%
 def get_other(df):
@@ -352,7 +352,7 @@ def get_other(df):
     return s_out
 
 #%%
-def get_props(df,NoFrames,ignore):
+def get_props(df,NoFrames,ignore,mode='ralf'):
     """ 
     Wrapper function to combine:
         - pickprops.get_ac(df,NoFrames)
@@ -375,7 +375,7 @@ def get_props(df,NoFrames,ignore):
     
     # Call individual functions   
     s_ac=get_ac(df,NoFrames)
-    s_tau=get_tau(df,ignore)
+    s_tau=get_tau(df,ignore,mode)
     s_other=get_other(df)
     # Combine output
     s_out=pd.concat([s_ac,s_tau,s_other])
@@ -383,18 +383,18 @@ def get_props(df,NoFrames,ignore):
     return s_out
 
 #%%
-def apply_props(df,conc,NoFrames,ignore): 
+def apply_props(df,conc,NoFrames,ignore,mode='ralf'): 
     """
     Applies pick_props.get_props(df,NoFrames,ignore) to each group in non-parallelized manner. Progressbar is shown under calculation.
     """
     tqdm.pandas() # For progressbar under apply
-    df_props=df.groupby('group').progress_apply(lambda df: get_props(df,NoFrames,ignore))
+    df_props=df.groupby('group').progress_apply(lambda df: get_props(df,NoFrames,ignore,mode))
     df_props['conc']=conc
     
     return df_props
 
 #%%
-def apply_props_dask(df,conc,NoFrames,ignore,NoPartitions): 
+def apply_props_dask(df,conc,NoFrames,ignore,NoPartitions,mode='ralf'): 
     """
     Applies pick_props.get_props(df,NoFrames,ignore) to each group in parallelized manner using dask by splitting df into 
     various partitions.
@@ -410,7 +410,7 @@ def apply_props_dask(df,conc,NoFrames,ignore,NoPartitions):
     df=df.set_index('group') # Set group as index otherwise groups will be split during partition!!!
     df=dd.from_pandas(df,npartitions=NoPartitions) 
     ########### Define apply_props for dask which will be applied to different partitions of df
-    def apply_props_2part(df,NoFrames,ignore): return df.groupby('group').apply(lambda df: get_props(df,NoFrames,ignore))
+    def apply_props_2part(df,NoFrames,ignore): return df.groupby('group').apply(lambda df: get_props(df,NoFrames,ignore,mode))
     ########### Map apply_props_2part to every partition of df for parallelized computing    
     with ProgressBar():
         df_props=df.map_partitions(apply_props_2part,NoFrames,ignore).compute()

@@ -44,22 +44,14 @@ def get_ecdf(x):
     return (values,counts)
 
 #%%
-def ecdf_exp(t,tau,off=0,A=1,t0=0):
+def ecdf_exp(t,tau,off=0,A=1):
     """
     Fit function for exponential fit of ECDF:
         ecdf=1-np.exp(-t/tau)
     """
-    ecdf=A*(1-np.exp(-(t-t0)/tau))+off
+    ecdf=A*(1-np.exp(-t/tau))+off
     return ecdf
 
-#%%
-def ecdf_exp_lin(t,tau):
-    """
-    Fit function for linear fit of linearized ECDF_lin(t)=-ln(1-ECDF(t)):
-        ecdf_lin=np.divide(t,tau)
-    """
-    ecdf_lin=np.divide(t,tau)
-    return ecdf_lin
 
 #%%
 def gaussian_2D(xdata_tuple, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
