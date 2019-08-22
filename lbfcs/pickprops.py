@@ -270,16 +270,18 @@ def fit_tau(tau_dist,mode='ralf'):
         tau as obtained by fitting f_lin(t)=t/tau to linearized data -ln(1-ECDF(t)) with least squares. 
         Last value of ECDF is omitted due to usage of logarithm.
     """
-    ####################################################### Get ECDF
-    tau_bins,tau_ecdf=varfuncs.get_ecdf(tau_dist)
-    
-    ####################################################### Define start paramter
-    p0=np.zeros(3)   
-    p0[0]=np.mean(tau_bins) # tau
-    p0[1]=np.min(tau_ecdf) # offset
-    p0[2]=np.max(tau_ecdf)-p0[1] # amplitude
-    ####################################################### Fit ECDF
+
     try:
+        #### Get ECDF
+        tau_bins,tau_ecdf=varfuncs.get_ecdf(tau_dist)
+    
+        ##### Define start parameter
+        p0=np.zeros(3)   
+        p0[0]=np.mean(tau_bins) # tau
+        p0[1]=np.min(tau_ecdf) # offset
+        p0[2]=np.max(tau_ecdf)-p0[1] # amplitude
+        
+        #### Fit
         if mode=='ralf':
             popt,pcov=scipy.optimize.curve_fit(varfuncs.ecdf_exp,tau_bins,tau_ecdf,p0) 
             tau=popt[0]
@@ -290,7 +292,9 @@ def fit_tau(tau_dist,mode='ralf'):
             tau=popt[0]
             off=0
             a=1
-            
+    
+    except IndexError:
+        tau,off,a=np.nan,np.nan,np.nan        
     except RuntimeError:
         tau,off,a=np.nan,np.nan,np.nan
     except ValueError:
@@ -410,10 +414,10 @@ def apply_props_dask(df,conc,NoFrames,ignore,NoPartitions,mode='ralf'):
     df=df.set_index('group') # Set group as index otherwise groups will be split during partition!!!
     df=dd.from_pandas(df,npartitions=NoPartitions) 
     ########### Define apply_props for dask which will be applied to different partitions of df
-    def apply_props_2part(df,NoFrames,ignore): return df.groupby('group').apply(lambda df: get_props(df,NoFrames,ignore,mode))
+    def apply_props_2part(df,NoFrames,ignore,mode): return df.groupby('group').apply(lambda df: get_props(df,NoFrames,ignore,mode))
     ########### Map apply_props_2part to every partition of df for parallelized computing    
     with ProgressBar():
-        df_props=df.map_partitions(apply_props_2part,NoFrames,ignore).compute()
+        df_props=df.map_partitions(apply_props_2part,NoFrames,ignore,mode).compute()
     df_props['conc']=conc
     return df_props
 
