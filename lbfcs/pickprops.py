@@ -254,21 +254,24 @@ def get_tau(df,ignore=1,mode='ralf'):
 #%%     
 def fit_tau(tau_dist,mode='ralf'):
     """ 
-    Least square fit of function f(t)=1-exp(-t/tau) to experimental continuous distribution function (ECDF) of tau_dist
+    Least square fit of function f(t)=a*(1-exp(-t/tau))+off to experimental continuous distribution function (ECDF) of tau_dist
     -> help(varfuncs.get_ecdf) equivalent to:
         matplotlib.pyplot.hist(tau_dist,bins=numpy.unique(tau_dist),normed=True,cumulative=True)
     
     Parameters
     ---------
     tau_dist : numpy.ndarray
-        1 dimensional array of bright or dark times t   
+        1 dimensional array of bright or dark times t 
+    mode: str
+        If mode is 'ralf' amplitude and offset will be floating freely, else fit will be performed with fixed parameters off=0 and a=1 as it was published
     Returns
     -------
     tau : float64
-        tau as obtained by fitting f(t) to ECDF(t) with least squares. 
-    tau_lin : float64
-        tau as obtained by fitting f_lin(t)=t/tau to linearized data -ln(1-ECDF(t)) with least squares. 
-        Last value of ECDF is omitted due to usage of logarithm.
+        tau as obtained by fitting f(t) to ECDF(t) with least squares.
+    off : float64
+        off as obtained by fitting f(t) to ECDF(t) with least squares. Set to 0 for non 'ralf' mode.
+    a : float64
+        a as obtained by fitting f(t) to ECDF(t) with least squares. Set to 1 for non 'ralf' mode.
     """
 
     try:
