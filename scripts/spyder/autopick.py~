@@ -56,7 +56,7 @@ ax.scatter(picklocs_render.x,picklocs_render.y,s=200,marker='+',alpha=1,color='w
 ax.set_xlim(view_x*oversampling,(view_x+view_width)*oversampling)
 ax.set_ylim(view_y*oversampling,(view_y+view_width)*oversampling)
 ax.grid(False)
-plt.show()
+pl.show()
 
 #%%
 ############################################################### Save picks

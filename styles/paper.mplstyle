@@ -29,7 +29,7 @@ legend.fontsize:11
 axes.titlesize:13
 axes.labelsize:13
 axes.labelcolor:black
-font.sans-serif: 'Arial'
+font.sans-serif: 'Bitsream Vera Sans'
 mathtext.default:regular
 
 #### Ticks
