@@ -28,8 +28,8 @@ with DNA-PAINT'][paper]). Parts of the [picasso](https://github.com/jungmannlab/
 4. [Clone](https://help.github.com/en/articles/cloning-a-repository) the lbFCS repository
 
 3. Let iPython know where it can find the lbFCS repository (for Jupyter Notebook or Spyder)
-   * Browse to ~/.ipython/profile_default in your home directory
-   * Create a file called startup.py with the following content
+   * Browse to ~/.ipython/profile_default/startup in your home directory
+   * Using Spyder create a file called startup.py with the following content:
    ```
    import sys
    sys.path.append('Path to /lbFCS')
