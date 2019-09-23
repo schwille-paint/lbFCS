@@ -2,54 +2,21 @@
 # Sets input parameters and defines path to data
 #
 ############################################################# Set parameters
-conc=[5,5,10,10,20,20,5,10,20,5,10,20] # Imager concentration [nM]
+conc=[20] # Imager concentration [nM]
 ignore=1 # Ignore_dark value for qPAINT analysis
-savename_ext='_props-new_ig%i'%(ignore) # File extension for processed file
+savename_ext='_props_ig%i'%(ignore) # File extension for processed file
 
 #### Advanced 
 omit_dist=True # If True all lists will be excluded for saving (recommended) 
 kin_filter=True # If True automatic filtering will be applied (recommended)
-NoPartitions=1 # Number of partitions for dask parallel computing
+NoPartitions=30 # Number of partitions for dask parallel computing
 
 ############################################################## Define data
 dir_names=[]
-############# stock1
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-03_SDS_T23/id64_5nM_p35uW_T23_1/19-05-04_FS']) 
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-04_1B11-Gel/id64_5nM_p35uW_control_1/19-05-06_FS']) 
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-03_SDS_T23/id64_10nM_p35uW_T23_1/19-05-04_FS'])
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-06_1F11-Gel/id64_10nM_p35uW_control_1/19-05-06_FS'])
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-03_SDS_T23/id64_20nM_p35uW_T23_1/19-05-03_FS']) 
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-06_1F11-Gel/id64_20nM_p35uW_control_1/19-05-06_FS']) 
-
-############# stock2
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-08_1B7-Gel/id64_5nM_p35uW_control_1/19-05-09_FS/'])
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-08_2B11-Gel/id64_10nM_p35uW_control_1/19-05-08_JS'])
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-07_SDS_T23/id64_20nM_p35uW_1/19-05-07_FS']) 
-
-############# stock3
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-10_2F7-Gel/id114_5nM_p35uW_control_1/19-05-12_JS/'])
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-10_2F7-Gel/id114_10nM_p35uW_control_1/19-05-12_JS/'])
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-10_1F7-Gel/id64_20nM_p35uW_control_1/19-05-10_FS'])
-
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p10.ClickReceptor/19-09-20_id155_TETRA-P3/id155_S1-TCO-TETRA-P3-30min_P3-20nM_green-35uW_2/']) 
 
 file_names=[]
-############# stock1
-file_names.extend(['id64_5nM_p35uW_T23_1_MMStack_Pos0.ome_locs_render_picked_stack3.hdf5']) # 1st stock (after T24, same sample)
-file_names.extend(['id64_5nM_p35uW_control_1_MMStack_Pos0.ome_locs_render_picked_stack3.hdf5']) #1 1st stock ()
-file_names.extend(['id64_10nM_p35uW_T23_1_MMStack_Pos0.ome_locs_render_picked_stack3.hdf5']) #1st stock (after T24, same sample)
-file_names.extend(['id64_10nM_p35uW_control_1_MMStack_Pos0.ome_locs_render_picked_stack3.hdf5']) #1st stock ()
-file_names.extend(['id64_20nM_p35uW_T23_1_MMStack_Pos0.ome_locs_render_picked_stack3.hdf5']) #1st stock (after T24)
-file_names.extend(['id64_20nM_p35uW_control_1_MMStack_Pos0.ome_locs_render_picked_stack3.hdf5']) #1st stock ()
-
-############# stock2
-file_names.extend(['id64_5nM_p35uW_control_1_MMStack_Pos0.ome_locs_render_picked_stack3.hdf5']) #2nd stock (before id86)
-file_names.extend(['id64_10nM_p35uW_control_1_MMStack_Pos0.ome_locs_render_picked_stack3.hdf5']) #2nd stock (after T22, new sample) 
-file_names.extend(['id64_20nM_p35uW_1_MMStack_Pos0.ome_locs_render_picked_stack3.hdf5']) #2nd stock (before T22, same sample)
-
-############# stock3
-file_names.extend(['id114_5nM_p35uW_control_1_MMStack_Pos0.ome_locs_render_picked_stack3.hdf5']) #3rd stock (before id89)
-file_names.extend(['id114_10nM_p35uW_control_1_MMStack_Pos0.ome_locs_render_picked_stack3.hdf5']) #3rd stock (before and after id94) 
-file_names.extend(['id64_20nM_p35uW_control_1_MMStack_Pos0.ome_locs_render_picked_stack3.hdf5']) #3rd stock (before and after id94)
+file_names.extend(['id155_S1-TCO-TETRA-P3-30min_P3-20nM_green-35uW_2_MMStack_Pos0.ome_locs_render_picked.hdf5'])
 
 #################################################### Load packages
 import os #platform independent paths
@@ -116,12 +83,12 @@ for i in range(0,len(path)):
                         mode='picasso_compatible')
 
 #%%
-#import matplotlib.pyplot as plt
-#import lbfcs.varfuncs as varfuncs
-#import importlib
-#importlib.reload(varfuncs)
-#import numpy as np
-#plt.style.use('~/qPAINT/styles/paper.mplstyle')
+import matplotlib.pyplot as plt
+import lbfcs.varfuncs as varfuncs
+import importlib
+importlib.reload(varfuncs)
+import numpy as np
+plt.style.use('~/lbFCS/styles/paper.mplstyle')
 #
 ############################################ Individual picks
 #f=plt.figure(num=12,figsize=[4,3])
@@ -130,7 +97,7 @@ for i in range(0,len(path)):
 #
 ##### Autocorrelation
 #ax=f.add_subplot(311)
-#for g in [7]:
+#for g in [12]:
 #    print(locs_props.loc[g,'mono_tau'],locs_props.loc[g,'mono_tau_lin'])
 #    ax.plot(locs_props.loc[g,'tau'],
 #            varfuncs.ac_monoexp(locs_props.loc[g,'tau'],locs_props.loc[g,'mono_A'],locs_props.loc[g,'mono_tau']),
@@ -144,7 +111,7 @@ for i in range(0,len(path)):
 ##### Trace
 #ax=f.add_subplot(312)
 #ax.plot(locs_props.loc[g,'trace'])
-#ax.set_ylim(0,20)
+#ax.set_ylim(0,2000)
 #
 ##### tau_d_dist
 #ax=f.add_subplot(313)
@@ -158,12 +125,12 @@ for i in range(0,len(path)):
 #ax.set_ylim(0,y.max()+0.1)
 #
 #
-######################################## Distributions
-#field='tau_d'
-#bins=np.arange(0,20,1)
-#
-#f=plt.figure(num=11,figsize=[4,3])
-#f.subplots_adjust(bottom=0.1,top=0.99,left=0.2,right=0.99)
-#f.clear()
-#ax=f.add_subplot(111)
-#ax.hist(locs_props.loc[:,field].dropna(),bins=bins,color='gray',edgecolor='k');
+######################################### Distributions
+field='n_events'
+bins=np.arange(0,700,30)
+
+f=plt.figure(num=11,figsize=[4,3])
+f.subplots_adjust(bottom=0.1,top=0.99,left=0.2,right=0.99)
+f.clear()
+ax=f.add_subplot(111)
+ax.hist(locs_props.loc[:,field].dropna(),bins=bins,color='gray',edgecolor='k');

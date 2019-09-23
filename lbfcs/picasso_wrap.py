@@ -1,7 +1,9 @@
 import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
 
 #%%
-def _spot_in_image(image,mng,box,fit=False):
+def _spots_in_image(image,mng,box,fit=False):
     ### Import
     import picasso.localize
     import picasso.gausslq 
@@ -44,68 +46,32 @@ def _spot_in_image(image,mng,box,fit=False):
 
 
 #%%
-def _spot_preview(movie,info,frame,box,mng,contrast_min=100,contrast_max=200):
+def _image_preview(image,view=None,contrast_min=100,contrast_max=200,fignum=12):
     '''
 
     '''
-    #### Get image of movie at frame
-    image=movie[frame]
-    
-    #### Detect spots in image 
-    locs=_spot_in_image(image,mng,box,fit=False)
-    
-    #### Set viewing dimensions
-    view_x=info[0]['Width']/2
-    view_y=info[0]['Height']/2
-    view_width=info[0]['Height']/4
-    
-    import matplotlib.pyplot as plt
-    f=plt.figure(num=12,figsize=[4,4])
-    f.subplots_adjust(bottom=0.,top=1.,left=0.,right=1.)
-    f.clear()
-    ax=f.add_subplot(111)
-    ax.imshow(image,cmap='gray',vmin=contrast_min,vmax=contrast_max,interpolation='nearest')
-    ax.scatter(locs.x,locs.y,s=50,marker='o',alpha=1,facecolor='None',edgecolor='y',linewidths=1)    
-    ax.set_xlim((view_x-view_width),(view_x+view_width))
-    ax.set_ylim((view_y-view_width),(view_y+view_width))
-    ax.grid(False)
-    plt.show()
-    
-    return ax
-
-#%%
-def _render_preview(locs,info,oversampling=2,blur_method=None,min_blur_width=0.02,contrast_min=100,contrast_max=200,fignum=13):
-    '''
-
-    '''
-    import picasso.render as render
-    
-    #### Define viewport
-    view_x=info[0]['Height']/2
-    view_y=info[0]['Width']/2
-    view_width=info[0]['Width']/4
-    viewport=[(view_x-view_width,view_y-view_width),(view_width*2,view_width*2)]
-    
-    #### Render image
-    n_locs,locs_render=render.render(
-        locs,
-        info,
-        oversampling=oversampling,
-        viewport=viewport,
-        blur_method=blur_method,
-        min_blur_width=min_blur_width
-        )
-
-    import matplotlib.pyplot as plt
     f=plt.figure(num=fignum,figsize=[4,4])
     f.subplots_adjust(bottom=0.,top=1.,left=0.,right=1.)
     f.clear()
     ax=f.add_subplot(111)
-    ax.imshow(locs_render,cmap='magma',vmin=contrast_min,vmax=contrast_max,interpolation='nearest')
-    ax.grid(False)
-    plt.show()
     
+    ax.imshow(image,cmap='gray',vmin=contrast_min,vmax=contrast_max,interpolation='nearest')   
+    ax.grid(False)
+    
+    if view is None:
+        print('No viewport')
+    else:
+        ax.set_xlim(view[0][0]-view[1][0]/2,
+                    view[0][0]+view[1][0]/2)
+        ax.set_ylim(view[0][1]-view[1][1]/2,
+                    view[0][1]+view[1][1]/2)
+  
     return ax
+
+#%%
+def _spots_preview(spots,ax):
+    ax.scatter(spots.x,spots.y,s=50,marker='o',alpha=1,facecolor='None',edgecolor='y',linewidths=1)
+
 #%%
 def _localize_movie(movie,box=5,mng=400,):
     '''
@@ -132,11 +98,13 @@ def _localize_movie(movie,box=5,mng=400,):
 
     #### Gauss-Fitting
     print('Fitting ...')
-    fs = gausslq.fit_spots_parallel(spots, asynch=True)
-    theta = gausslq.fits_from_futures(fs)
-    em = camera_info['gain'] > 1
-    locs = gausslq.locs_from_fits(identifications, theta, box, em)
+#    fs = gausslq.fit_spots_parallel(spots, asynch=True)
+#    theta = gausslq.fits_from_futures(fs)
+    theta = gausslq.fit_spots_gpufit(spots)
     
+    em = camera_info['gain'] > 1
+#    locs = gausslq.locs_from_fits(identifications, theta, box, em)
+    locs=gausslq.locs_from_fits_gpufit(identifications, theta, box, em)
     assert len(spots) == len(locs)
     
     return spots, locs
@@ -154,4 +122,53 @@ def _locs2picks(locs,pick_diameter,path):
     import yaml  as yaml
     with open(path, 'w') as f:
         yaml.dump(picks, f)
-        
+
+#%%
+def _get_picked(locs,centers,pick_diameter=2):
+    '''
+    Parameters
+    ---------
+    locs : numpy.recarray
+        locs as created by picasso.localize
+    centers: np.array of shape (m,2)
+        x and y pick center positions
+    pick_diameter: float
+        Pick diameter in px
+    Returns
+    -------
+    locs_picked: numpy.recarray
+        locs_picked file as created by picasso.render 
+    '''
+    from scipy.spatial import cKDTree
+    
+    #### Prepare data for KDtree
+    data=np.vstack([locs.x,locs.y]).transpose()
+    
+    #### Build up KDtree
+    tree=cKDTree(data,compact_nodes=False,balanced_tree=False)
+
+    #### Query KDtree for indices belonging to picks
+    picks_idx=tree.query_ball_point(centers,r=pick_diameter,p=1)
+
+    #### Init locs_picked as DataFrame
+    locs_picked=pd.DataFrame(locs).assign(group=np.nan)
+    
+    #### Assign group index
+    groups=np.full(len(locs),np.nan)
+    for g,idx in enumerate(picks_idx): groups[idx]=g
+    locs_picked['group']=groups
+    
+    #### Drop all unassigned localizations (NaNs)
+    locs_picked=locs_picked.loc[np.isfinite(locs_picked.group),:]
+    
+    #### Convert to right dtype
+    locs_picked.group=locs_picked.group.astype(np.uint32())
+    
+    #### Sort
+    locs_picked.sort_values(['group','frame'],inplace=True)
+    
+    return locs_picked
+
+
+
+

@@ -447,17 +447,17 @@ def _kin_filter(df):
     istrue=istrue | (df_drop.mean_frame<(0.85*perc(df_drop.mean_frame,50)))
     df_drop.drop(df_drop.loc[istrue].index,inplace=True)
     
-    #### ... or std_frame lower than 0.85 x 50-percentile
+    ### ... or std_frame lower than 0.85 x 50-percentile
     istrue=df_drop.std_frame<(0.85*perc(df_drop.std_frame,50))
     df_drop.drop(df_drop.loc[istrue].index,inplace=True)
     
-    #### Boolean: mono_tau higher than 2 x 50-percentile
-    #### ..............or lower than 0.5 x 50-percentile
+    ### Boolean: mono_tau higher than 2 x 50-percentile
+    ### ..............or lower than 0.5 x 50-percentile
     istrue=df_drop.mono_tau>(2*perc(df_drop.mono_tau,50))
     istrue=istrue | (df_drop.mono_tau<(0.5*perc(df_drop.mono_tau,50)))
     df_drop.drop(df_drop.loc[istrue].index,inplace=True)
     
-    #### Boolean: mono_A higher than 4 x 50-percentile
+    ### Boolean: mono_A higher than 4 x 50-percentile
     istrue=df_drop.mono_A>(4*perc(df_drop.mono_A,50))
     df_drop.drop(df_drop.loc[istrue].index,inplace=True)
   
