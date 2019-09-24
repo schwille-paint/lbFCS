@@ -4,4 +4,3 @@
 
     :authors: Florian Stehr 2019
 """
-

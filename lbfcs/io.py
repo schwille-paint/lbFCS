@@ -1,5 +1,6 @@
 import pandas as pd
 import h5py
+import os
 
 #%%
 def load_locs(path,container='locs'):
@@ -59,7 +60,7 @@ def save_locs(path,locs,info,mode=None):
  
     ### Save info in .yaml
     from picasso.io import save_info as save_info
-    save_info(path.replace('.hdf5','.yaml'),
+    save_info(os.path.splitext(path)[0]+'.yaml',
               info,
               default_flow_style=False)
     
