@@ -1,83 +1,57 @@
 # lbFCS
 
 ## Description
-Python package to evaluate [DNA-PAINT][paint] SMLM data via autocorrelation analysis for self-calibrating counting of molecules (according to ['Self-calibrating molecular counting
-with DNA-PAINT'][paper]). Parts of the [picasso](https://github.com/jungmannlab/picasso) code were used for this project.
+Python package to evaluate [DNA-PAINT][paint] SMLM data via autocorrelation analysis for self-calibrating counting of molecules (according to ['Towards absolute molecular numbers in DNA-PAINT'][paper]). It requires the installation of the [picasso](https://github.com/jungmannlab/picasso) package.
 
 <img src="/docs/figures/principle.png" alt="principle" width="700">
 
 ## Table of contents
 * [Installation](#installation)
 * [Usage](#usage)
-   * [Localize](#1-localize)
-   * [Undrift](#2-undrift)
-   * [Autopick](#3-autopick)
-   * [Render: Picked](#4-render-picked)
-   * [Pickprops](#5-pickprops)
-   * [Concentration series](#6-concentrations-series)
+* [Remarks](#remarks)
+
 ## Installation
-1. Create a [conda][conda] environment ``conda create --name lbFCS python=3.5``
 
+We will first prepare the necessary conda environment:
+1. Create a [conda][conda] environment ``conda create --name lbFCS python=3.7``
 2. Activate the environment ``conda activate lbFCS``
-
 3. Install necessary packages 
-    * ``conda install h5py matplotlib numba numpy scipy pyqt=4 pyyaml scikit-learn colorama tqdm spyder pandas dask spyder fastparquet pytables``
+    * ``conda install h5py matplotlib numba numpy scipy pyqt pyyaml scikit-learn colorama tqdm spyder pandas dask spyder fastparquet pytables jupyterlab``
     * ``pip install lmfit``
-    * ``pip install jupyterlab``
 
-4. [Clone](https://help.github.com/en/articles/cloning-a-repository) the lbFCS repository
 
-3. Let iPython know where it can find the lbFCS repository (for Jupyter Notebook or Spyder)
-   * Browse to ~/.ipython/profile_default/startup in your home directory
-   * Using Spyder create a file called startup.py with the following content:
-   ```
-   import sys
-   sys.path.append('Path to /lbFCS')
-   ```
-4. Install the [picasso GUI](https://github.com/jungmannlab/picasso) (standard installation).
+Since lbFCS uses some core modules of the [picasso](https://github.com/jungmannlab/picasso) package we will next install picasso into our environment
+1. [Clone](https://help.github.com/en/articles/cloning-a-repository) the [picasso](https://github.com/jungmannlab/picasso) repository
+2. Switch to the cloned folder ``cd picasso``
+3. Install picasso into the environment ``python setup.py install``
+
+Finally we install lbFCS into our environment
+
+1. Leave the picasso directory ``cd ..``
+2. [Clone](https://help.github.com/en/articles/cloning-a-repository) the [picasso](https://github.com/schwille-paint/lbFCS) repository
+3. Switch to the cloned folder ``cd lbFCS``
+4. Install lbFCS into the environment ``python setup.py install``
+
+
 
 ## Usage
-The following is a short guide through the necessary processing steps from DNA-PAINT raw-data to the final result according to ['Self-calibrating molecular counting
-with DNA-PAINT'][paper]. For more information on the imaging modalities or sample preparation please refer to the reference. 
-
-### 1. Localize
-Localize DNA-PAINT raw-data aquired under low exitation intensities (approx. 10 kW/cm^2 with a frame rate of 5Hz used imager was labeled with Cy3B) using the [picasso.localize](https://picassosr.readthedocs.io/en/latest/localize.html) module. 
-The following picture shows the standard parameters used and the typical look of our raw data. 
-
-<img src="/docs/figures/localize.png" alt="principle" width="400">
-
-The shown paramters apply to the standard conditions of our setup & sample and might hence differ under other circumstances. In general the following rules should apply for a reasonable selection of localization parameters with picasso.localize
-   * Set the box size to the minimum length in which the PSF of your microscope fits in 
-   * Set the minimum net gradient low enough so that every spot that can be detected by eye is also detected by picasso.localize.  
-   * Set the correct photon conversion parameters for your camera
-    
-Afer you adjusted all the parameters localize by choosing >Analyze>Localize. A '_locs.hdf5' file is created in the same folder as the raw-data that is used for further analysis.
-
-### 2. Undrift
-Undrift the '_locs.hdf5' file using the [picasso.render ](https://picassosr.readthedocs.io/en/latest/render.html) module.
-Therefore drag and drop the '_locs.hdf5' file into the render GUI and choose >Postprocess>Undrift by RCC with a segmentation of 500. 
-
-<img src="/docs/figures/undrift.png" alt="principle" width="400">
-
-An undrifted '_locs_render.hdf5' file is created in the same folder as the raw-data that is used for further analysis.
-
-### 3. Autopick
-Go to the [autopick notebook](/scripts/notebooks/autopick.ipynb)
-
-### 4. Render: Picked
-
-### 5. Pickprops
-Go to the [pickprops&filter notebook](/scripts/notebooks/pickprops&filter.ipynb)
-
-### 6. Concentration series
-Go to the [c-series notebook](/scripts/notebooks/c-series.ipynb)
+The following is a short guide through the necessary processing steps from DNA-PAINT raw-data to the final result according to ['Towards absolute molecular numbers in DNA-PAINT'][paper]. For more information on the imaging modalities or sample preparation please refer to the reference. 
 
 
-### Remark
+1. Localize the raw movie and perform drift correction [(localize_undrift notebook)](/scripts/notebooks/01_localize_undrift.ipynb)
+
+2. Automated localization cluster detection [(autopick notebook)](/scripts/notebooks/02_autopick.ipynb)
+
+3. Kinetic analysis and of localization clusters and automated filtering based on kinetic properties [(pickprops_filter notebook)](/scripts/notebooks/03_pickprops_filter.ipynb)
+
+4. Final counting of molecular numbers and hybridization kinetics via concentration series evaluation [(c-series notebook)](/scripts/notebooks/04_c-series.ipynb)
+
+
+### Remarks
 Sometimes the notebooks cannot be rendered by GitHub. Try the following work-around:
 1. Open https://nbviewer.jupyter.org/
 2. Paste the link to the notbook on GitHub, e.g. https://github.com/schwille-paint/lbFCS/blob/master/scripts/notebooks/autopick.ipynb 
 
 [paint]:https://www.nature.com/articles/nprot.2017.024
-[paper]:http://not-known-yet.com
+[paper]: https://pubs.acs.org/doi/abs/10.1021/acs.nanolett.9b03546
 [conda]:https://docs.conda.io/projects/conda/en/latest/user-guide/getting-started.html

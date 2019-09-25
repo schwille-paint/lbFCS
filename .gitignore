@@ -4,3 +4,7 @@ __pycache__/
 /lbfcs/__pycache__
 /scripts/notebooks/.ipynb_checkpoints
 .gitignore~
+/dist
+/build
+/lbFCS.egg-info
+README.md~
