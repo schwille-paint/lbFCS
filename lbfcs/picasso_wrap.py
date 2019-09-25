@@ -2,6 +2,14 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+### Test if GPU fitting can be used
+try:
+    from pygpufit import gpufit as gf
+
+    gpufit_installed = True
+except ImportError:
+    gpufit_installed = False
+    
 #%%
 def _spots_in_image(image,mng,box,fit=False):
     ### Import
@@ -97,14 +105,17 @@ def _localize_movie(movie,box=5,mng=400,):
     spots = localize.get_spots(movie, identifications, box, camera_info)
 
     #### Gauss-Fitting
-    print('Fitting ...')
-#    fs = gausslq.fit_spots_parallel(spots, asynch=True)
-#    theta = gausslq.fits_from_futures(fs)
-    theta = gausslq.fit_spots_gpufit(spots)
-    
     em = camera_info['gain'] > 1
-#    locs = gausslq.locs_from_fits(identifications, theta, box, em)
-    locs=gausslq.locs_from_fits_gpufit(identifications, theta, box, em)
+    if gpufit_installed:
+        print('GPU fitting ...')
+        theta = gausslq.fit_spots_gpufit(spots)
+        locs=gausslq.locs_from_fits_gpufit(identifications, theta, box, em)
+    else:
+        print('Fitting ...')
+        fs = gausslq.fit_spots_parallel(spots, asynch=True)
+        theta = gausslq.fits_from_futures(fs)   
+        locs = gausslq.locs_from_fits(identifications, theta, box, em)
+        
     assert len(spots) == len(locs)
     
     return spots, locs
