@@ -16,7 +16,7 @@ We will first prepare the necessary conda environment:
 1. Create a [conda][conda] environment ``conda create --name lbFCS python=3.7``
 2. Activate the environment ``conda activate lbFCS``
 3. Install necessary packages 
-    * ``conda install h5py matplotlib numba numpy scipy pyqt pyyaml scikit-learn colorama tqdm spyder pandas dask spyder fastparquet pytables jupyterlab``
+    * ``conda install h5py matplotlib numba numpy scipy pyqt pyyaml scikit-learn colorama tqdm=4.36.1 spyder pandas dask spyder fastparquet pytables jupyterlab``
     * ``pip install lmfit``
 
 

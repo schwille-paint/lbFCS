@@ -173,7 +173,7 @@ def _get_picked(locs,centers,pick_diameter=2):
     locs_picked=locs_picked.loc[np.isfinite(locs_picked.group),:]
     
     #### Convert to right dtype
-    locs_picked.group=locs_picked.group.astype(np.uint32())
+    locs_picked=locs_picked.astype({'group':np.uint32})
     
     #### Sort
     locs_picked.sort_values(['group','frame'],inplace=True)

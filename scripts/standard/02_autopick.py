@@ -9,7 +9,7 @@ import lbfcs.picasso_wrap as pic_wrap
 importlib.reload(pic_wrap)
 
 ############################################################## Load data
-dir_name='/fs/pool/pool-schwille-paint/Data/p10.ClickReceptor/19-09-20_id155_TETRA-P3/id155_S1-TCO-TETRA-P3-30min_P3-20nM_green-35uW_2/'
+dir_name='/fs/pool/pool-schwille-paint/Data/p10.ClickReceptor/19-09-20_id155_TETRA-P3/id155_S1-TCO-TETRA-P3-30min_P3-20nM_green-35uW_2/19-09-20_FS'
 file_name='id155_S1-TCO-TETRA-P3-30min_P3-20nM_green-35uW_2_MMStack_Pos0.ome_locs_render.hdf5'
 
 path=os.path.join(dir_name,file_name) 

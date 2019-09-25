@@ -242,13 +242,13 @@ def get_tau(df,ignore=1,mode='ralf'):
 
     ################ Extract tau's
     # Bright time
-    tau_b,tau_b_off,tau_b_a=fit_tau(tau_b_dist,mode)
+    tau_b,tau_b_off,tau_b_a,tau_b_ulen=fit_tau(tau_b_dist,mode)
     # Dark time
-    tau_d,tau_d_off,tau_d_a=fit_tau(tau_d_dist,mode)
+    tau_d,tau_d_off,tau_d_a,tau_d_ulen=fit_tau(tau_d_dist,mode)
 
     ###################################################### Assignment to series 
     s_out=pd.Series({'tau_b_dist':tau_b_dist,'tau_b':tau_b,'tau_b_off':tau_b_off,'tau_b_a':tau_b_a,'tau_b_mean':np.mean(tau_b_dist), # Bright times
-                     'tau_d_dist':tau_d_dist,'tau_d':tau_d,'tau_d_off':tau_d_off,'tau_d_a':tau_d_a,'tau_d_mean':np.mean(tau_d_dist), # Dark times
+                     'tau_d_dist':tau_d_dist,'tau_d':tau_d,'tau_d_off':tau_d_off,'tau_d_a':tau_d_a,'tau_d_ulen':tau_d_ulen,'tau_d_mean':np.mean(tau_d_dist), # Dark times
                      'n_events':n_events}) # Events
     return s_out    
 #%%     
@@ -273,39 +273,44 @@ def fit_tau(tau_dist,mode='ralf'):
     a : float64
         a as obtained by fitting f(t) to ECDF(t) with least squares. Set to 1 for non 'ralf' mode.
     """
-
-    try:
-        #### Get ECDF
-        tau_bins,tau_ecdf=varfuncs.get_ecdf(tau_dist)
+    #### Get number of unique values in tau distribution to decide if fitting makes sense
+    ulen=len(np.unique(tau_dist))
     
-        ##### Define start parameter
-        p0=np.zeros(3)   
-        p0[0]=np.mean(tau_bins) # tau
-        p0[1]=np.min(tau_ecdf) # offset
-        p0[2]=np.max(tau_ecdf)-p0[1] # amplitude
-        
-        #### Fit
-        if mode=='ralf':
-            popt,pcov=scipy.optimize.curve_fit(varfuncs.ecdf_exp,tau_bins,tau_ecdf,p0) 
-            tau=popt[0]
-            off=popt[1]
-            a=popt[2]
-        else:
-            popt,pcov=scipy.optimize.curve_fit(varfuncs.ecdf_exp,tau_bins,tau_ecdf,p0[0]) 
-            tau=popt[0]
-            off=0
-            a=1
-    
-    except IndexError:
-        tau,off,a=np.nan,np.nan,np.nan        
-    except RuntimeError:
-        tau,off,a=np.nan,np.nan,np.nan
-    except ValueError:
-        tau,off,a=np.nan,np.nan,np.nan
-    except TypeError:
-        tau,off,a=np.nan,np.nan,np.nan
-        
-    return tau,off,a
+    if ulen<=3: # Fit has 3 degrees of freedom hence more than 4 datapoints are necessary
+        tau,off,a=np.mean(tau_dist),0,1
+        return tau,off,a,ulen
+    else:     
+        try:
+            #### Get ECDF
+            tau_bins,tau_ecdf=varfuncs.get_ecdf(tau_dist)
+            ##### Define start parameter
+            p0=np.zeros(3)   
+            p0[0]=np.mean(tau_bins) # tau
+            p0[1]=np.min(tau_ecdf) # offset
+            p0[2]=np.max(tau_ecdf)-p0[1] # amplitude
+            
+            #### Fit
+            if mode=='ralf':
+                popt,pcov=scipy.optimize.curve_fit(varfuncs.ecdf_exp,tau_bins,tau_ecdf,p0) 
+                tau=popt[0]
+                off=popt[1]
+                a=popt[2]
+            else:
+                popt,pcov=scipy.optimize.curve_fit(varfuncs.ecdf_exp,tau_bins,tau_ecdf,p0[0]) 
+                tau=popt[0]
+                off=0
+                a=1
+                
+        except IndexError:
+            tau,off,a=np.nan,np.nan,np.nan        
+        except RuntimeError:
+            tau,off,a=np.nan,np.nan,np.nan
+        except ValueError:
+            tau,off,a=np.nan,np.nan,np.nan
+        except TypeError:
+            tau,off,a=np.nan,np.nan,np.nan
+            
+    return tau,off,a,ulen
 
 #%%
 def get_other(df):
@@ -407,12 +412,13 @@ def apply_props_dask(df,conc,NoFrames,ignore,NoPartitions,mode='ralf'):
     various partitions.
     """
     ########### Load packages
-    import dask
-    import dask.multiprocessing
+#    import dask
+#    import dask.multiprocessing
     import dask.dataframe as dd
     from dask.diagnostics import ProgressBar
     ########### Globally set dask scheduler to processes
-    dask.set_options(get=dask.multiprocessing.get)
+#    dask.config.set(scheduler='processes')
+#    dask.set_options(get=dask.multiprocessing.get)
     ########### Partionate df using dask for parallelized computation
     df=df.set_index('group') # Set group as index otherwise groups will be split during partition!!!
     df=dd.from_pandas(df,npartitions=NoPartitions) 
@@ -420,7 +426,7 @@ def apply_props_dask(df,conc,NoFrames,ignore,NoPartitions,mode='ralf'):
     def apply_props_2part(df,NoFrames,ignore,mode): return df.groupby('group').apply(lambda df: get_props(df,NoFrames,ignore,mode))
     ########### Map apply_props_2part to every partition of df for parallelized computing    
     with ProgressBar():
-        df_props=df.map_partitions(apply_props_2part,NoFrames,ignore,mode).compute()
+        df_props=df.map_partitions(apply_props_2part,NoFrames,ignore,mode).compute(scheduler='processes')
     df_props['conc']=conc
     return df_props
 
