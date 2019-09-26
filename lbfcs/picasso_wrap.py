@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 ### Test if GPU fitting can be used
 try:
     from pygpufit import gpufit as gf
-
-    gpufit_installed = True
+    gpufit_available=True
+    gpufit_available=gf.cuda_available()
 except ImportError:
     gpufit_installed = False
     
@@ -106,7 +106,7 @@ def _localize_movie(movie,box=5,mng=400,):
 
     #### Gauss-Fitting
     em = camera_info['gain'] > 1
-    if gpufit_installed:
+    if gpufit_available:
         print('GPU fitting ...')
         theta = gausslq.fit_spots_gpufit(spots)
         locs=gausslq.locs_from_fits_gpufit(identifications, theta, box, em)
