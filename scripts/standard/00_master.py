@@ -6,8 +6,8 @@ import lbfcs.picasso_wrap as pic_wrap
 #%%
 
 ############################################################## Load data
-dir_name='/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-06-18_N=48/id114_10nM_p35uW_control_1'
-file_name='id114_10nM_p35uW_control_1_MMStack_Pos0.ome.tif'
+dir_name='/fs/pool/pool-schwille-paint/Data/p11.lbFCSnew/19-09-26_adapter_test/id163_Pm2-20nM_p38uW_2/'
+file_name='id163_Pm2-20nM_p38uW_2_MMStack_Pos0.ome.tif'
 
 path=os.path.join(dir_name,file_name) 
 
