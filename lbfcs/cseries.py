@@ -139,7 +139,7 @@ def _prep_mono_tau(df_stats,df_fit):
     yerr=df_stats.loc[:,(field,'std')]
     
     popt=df_fit.loc['lbfcs',:]
-    xfit=np.arange(0,30,0.1)
+    xfit=np.arange(0,max(x)+5,0.1)
     yfit=varfuncs.tau_of_c(xfit*1e-9,*popt)
     
     return x,y,yerr,xfit,yfit
@@ -156,7 +156,7 @@ def _mono_tau_onax(ax,df_stats,df_fit,color='red',label_data='data',label_fit='f
     ax.plot(xfit,yfit,'-',label=label_fit,c=color,lw=2)
     
     styler.ax_styler(ax)
-    ax.set_xlim(0,25)
+    ax.set_xlim(0,max(x)+5)
     ax.set_xlabel('Concentration (nM)')
     ax.set_ylabel(r'$\langle\tau\rangle$ (s)')
     ax.legend(loc='upper right')
@@ -173,7 +173,7 @@ def _prep_mono_A(df_stats,df_fit):
           df_stats.loc[:,(field,'75%')]/df_stats.loc[:,(field,'50%')]**2]
     
     popt=df_fit.loc['lbfcsA',:]
-    xfit=np.arange(0,30,0.1)
+    xfit=np.arange(0,max(x)+5,0.1)
     yfit=varfuncs.Ainv_of_c(xfit*1e-9,*popt)
     
     return x,y,yerr,xfit,yfit
@@ -190,7 +190,7 @@ def _mono_A_onax(ax,df_stats,df_fit,color='red',label_data='data',label_fit='fit
     ax.plot(xfit,yfit,'-',label=label_fit,c=color,lw=2)
     
     styler.ax_styler(ax)
-    ax.set_xlim(0,25)
+    ax.set_xlim(0,max(x)+5)
     ax.set_xlabel('Concentration (nM)')
     ax.set_ylabel(r'$1/A$ (a.u.)')
     ax.legend(loc='upper left')
@@ -207,7 +207,7 @@ def _prep_tau_d(df_stats,df_fit):
           df_stats.loc[:,(field,'75%')]/df_stats.loc[:,(field,'50%')]**2]
     
     popt=df_fit.loc['qpaint',:]
-    xfit=np.arange(0,30,0.1)
+    xfit=np.arange(0,max(x)+5,0.1)
     yfit=varfuncs.taudinv_of_c(xfit*1e-9,*popt)
     
     return x,y,yerr,xfit,yfit
@@ -224,7 +224,7 @@ def _tau_d_onax(ax,df_stats,df_fit,color='red',label_data='data',label_fit='fit'
     ax.plot(xfit,yfit,'-',label=label_fit,c=color,lw=2)
     
     styler.ax_styler(ax)
-    ax.set_xlim(0,25)
+    ax.set_xlim(0,max(x)+5)
     ax.set_xlabel('Concentration (nM)')
     ax.set_ylabel(r'$1/\tau_d$ (Hz)')
     ax.legend(loc='upper left')
