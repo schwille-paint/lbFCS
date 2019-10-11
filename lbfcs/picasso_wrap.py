@@ -41,7 +41,7 @@ def _spots_in_image(image,mng,box,fit=False):
 
         #### Fit spots
         theta=picasso.gausslq.fit_spots_parallel(spots,asynch=False)
-
+        
         #### Convert fit results to localizations
         locs=picasso.gausslq.locs_from_fits(identifications, theta, box, 1)
     else:
@@ -148,7 +148,7 @@ def _get_picked(locs,centers,pick_diameter=2):
     Returns
     -------
     locs_picked: numpy.recarray
-        locs_picked file as created by picasso.render 
+        locs_picked file as created by picasso.render but as pandas.DataFrame
     '''
     from scipy.spatial import cKDTree
     
@@ -159,7 +159,7 @@ def _get_picked(locs,centers,pick_diameter=2):
     tree=cKDTree(data,compact_nodes=False,balanced_tree=False)
 
     #### Query KDtree for indices belonging to picks
-    picks_idx=tree.query_ball_point(centers,r=pick_diameter,p=1)
+    picks_idx=tree.query_ball_point(centers,r=pick_diameter,p=2)
 
     #### Init locs_picked as DataFrame
     locs_picked=pd.DataFrame(locs).assign(group=np.nan)
