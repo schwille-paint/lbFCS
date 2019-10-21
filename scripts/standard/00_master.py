@@ -1,3 +1,4 @@
+
 #Script to autopick on image basis and index locs accordingly
 import os
 from lbfcs.lbfcs import _master
@@ -6,23 +7,21 @@ import lbfcs.picasso_wrap as pic_wrap
 #%%
 
 ############################################################## Load data
-dir_name='/fs/pool/pool-schwille-paint/Data/p11.lbFCSnew/19-09-26_adapter_test/id163_Pm2-20nM_p38uW_2/'
-file_name='id163_Pm2-20nM_p38uW_2_MMStack_Pos0.ome.tif'
+dir_name='/fs/pool/pool-schwille-paint/Data/p11.lbFCSnew/19-10-21_c-series_N1_R1-9/id161_R1-9_20nM_p35uW_1'
+file_name='id161_R1-9_20nM_p35uW_1_MMStack_Pos0.ome.tif'
 
 path=os.path.join(dir_name,file_name) 
 
-movie,info,locs,locs_render,centers,locs_picked,locs_props,conc=_master(path,
-                                                                        box=5,
-                                                                        mng=400,
-                                                                        segments=500,
-                                                                        oversampling=5,
-                                                                        box_pick=9,
-                                                                        mng_pick=300,
-                                                                        pick_diameter=2,
-                                                                        ignore=1,
-                                                                        NoPartitions=30)
-
-
+movie,info,locs,locs_render,centers,locs_picked,_props,conc=master(path,
+                                                                   box=5,
+                                                                   mng=400,
+                                                                   segments=500,
+                                                                   oversampling=5,
+                                                                   box_pick=9,
+                                                                   mng_pick=300,
+                                                                   pick_diameter=1.6,
+                                                                   ignore=1,
+                                                                   NoPartitions=30)
 
 #%%
 ############################################################## Render

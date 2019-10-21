@@ -65,3 +65,23 @@ def save_locs(path,locs,info,mode=None):
               default_flow_style=False)
     
     return
+
+#%%
+def _save_picks(locs,pick_diameter,path):
+    '''
+    
+    '''
+    x=locs.x
+    y=locs.y
+    centers = []
+   
+    for index, element in enumerate(range(len(x))):
+        centers.append([float(x[index]),float(y[index])])
+    
+    picks = {'Diameter': float(pick_diameter), 'Centers': centers, 'Shape': 'Circle'}
+ 
+    import yaml  as yaml
+    with open(path, 'w') as f:
+        yaml.dump(picks,f)
+    
+    return picks
