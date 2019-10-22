@@ -1,14 +1,15 @@
 
 #Script to autopick on image basis and index locs accordingly
 import os
-from lbfcs.lbfcs import _master
+from lbfcs.lbfcs import master
 import picasso.render as render
 import lbfcs.picasso_wrap as pic_wrap
+import lbfcs.pyplot_wrap as plt_wrap
 #%%
 
 ############################################################## Load data
-dir_name='/fs/pool/pool-schwille-paint/Data/p11.lbFCSnew/19-10-21_c-series_N1_R1-9/id161_R1-9_20nM_p35uW_1'
-file_name='id161_R1-9_20nM_p35uW_1_MMStack_Pos0.ome.tif'
+dir_name='/fs/pool/pool-schwille-paint/Data/p11.lbFCSnew/19-10-21_c-series_N1_R1-9/id154_R1-9_20nM_p35uW_1'
+file_name='id154_R1-9_20nM_p35uW_1_MMStack_Pos0.ome.tif'
 
 path=os.path.join(dir_name,file_name) 
 
@@ -40,14 +41,14 @@ mng=300
 #### Image settings
 contrast_min=0
 contrast_max=100
-view=[(700,700),(200,200)]
 
 #### Show preview
-ax=pic_wrap._image_preview(image,
-                           view,
+ax=plt_wrap._image_preview(image,
                            contrast_min=contrast_min,
                            contrast_max=contrast_max,
                            fignum=13)
+ax.set_xlim(250,450)
+ax.set_ylim(250,450)
+
 spots=pic_wrap._spots_in_image(image,mng,box)
-pic_wrap._spots_preview(spots,
-                       ax)
+plt_wrap._spots_preview(spots,ax)

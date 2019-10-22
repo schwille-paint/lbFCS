@@ -135,7 +135,7 @@ def master(path,
 
     print('Applying kinetic filter ...')
     groups_nofilter=len(locs_props) # Number of groups before filter
-    locs_props=props._kin_filter(locs_props)
+    locs_props=props._kin_filter(locs_props,NoFrames)
     groups_filter=len(locs_props) # Number of groups after filter
     
     #### Add nearest neigbour pick and distance

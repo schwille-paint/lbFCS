@@ -146,7 +146,7 @@ def _prep_mono_tau(df_stats,df_fit):
     
 #%% 
 def _mono_tau_onax(ax,df_stats,df_fit,color='red',label_data='data',label_fit='fit'):
-    import lbfcs.plot_styler as styler
+    import lbfcs.pyplot_wrap as plt_wrap
     
     #### Get data to plot
     x,y,yerr,xfit,yfit=_prep_mono_tau(df_stats,df_fit)
@@ -155,7 +155,7 @@ def _mono_tau_onax(ax,df_stats,df_fit,color='red',label_data='data',label_fit='f
     ax.errorbar(x,y,yerr=yerr,fmt='o',label=label_data,c=color)
     ax.plot(xfit,yfit,'-',label=label_fit,c=color,lw=2)
     
-    styler.ax_styler(ax)
+    plt_wrap.ax_styler(ax)
     ax.set_xlim(0,max(x)+5)
     ax.set_xlabel('Concentration (nM)')
     ax.set_ylabel(r'$\langle\tau\rangle$ (s)')
@@ -180,7 +180,7 @@ def _prep_mono_A(df_stats,df_fit):
  
 #%%
 def _mono_A_onax(ax,df_stats,df_fit,color='red',label_data='data',label_fit='fit'):
-    import lbfcs.plot_styler as styler
+    import lbfcs.pyplot_wrap as plt_wrap
     
     #### Get data to plot
     x,y,yerr,xfit,yfit=_prep_mono_A(df_stats,df_fit)
@@ -189,7 +189,7 @@ def _mono_A_onax(ax,df_stats,df_fit,color='red',label_data='data',label_fit='fit
     ax.errorbar(x,y,yerr=yerr,fmt='o',label=label_data,c=color)
     ax.plot(xfit,yfit,'-',label=label_fit,c=color,lw=2)
     
-    styler.ax_styler(ax)
+    plt_wrap.ax_styler(ax)
     ax.set_xlim(0,max(x)+5)
     ax.set_xlabel('Concentration (nM)')
     ax.set_ylabel(r'$1/A$ (a.u.)')
@@ -214,7 +214,7 @@ def _prep_tau_d(df_stats,df_fit):
  
 #%%
 def _tau_d_onax(ax,df_stats,df_fit,color='red',label_data='data',label_fit='fit'):
-    import lbfcs.plot_styler as styler
+    import lbfcs.pyplot_wrap as plt_wrap
     
     #### Get data to plot
     x,y,yerr,xfit,yfit=_prep_tau_d(df_stats,df_fit)
@@ -223,7 +223,7 @@ def _tau_d_onax(ax,df_stats,df_fit,color='red',label_data='data',label_fit='fit'
     ax.errorbar(x,y,yerr=yerr,fmt='o',label=label_data,c=color)
     ax.plot(xfit,yfit,'-',label=label_fit,c=color,lw=2)
     
-    styler.ax_styler(ax)
+    plt_wrap.ax_styler(ax)
     ax.set_xlim(0,max(x)+5)
     ax.set_xlabel('Concentration (nM)')
     ax.set_ylabel(r'$1/\tau_d$ (Hz)')

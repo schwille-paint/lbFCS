@@ -7,16 +7,16 @@ ignore=1 # Ignore_dark value for qPAINT analysis
 savename_ext='_props_ig%i'%(ignore) # File extension for processed file
 
 #### Advanced 
-omit_dist=False # If True all lists will be excluded for saving (recommended) 
-kin_filter=False # If True automatic filtering will be applied (recommended)
+omit_dist=True# If True all lists will be excluded for saving (recommended) 
+kin_filter=True # If True automatic filtering will be applied (recommended)
 NoPartitions=30 # Number of partitions for dask parallel computing
 
 ############################################################## Define data
 dir_names=[]
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p11.lbFCSnew/19-10-16_c-series_N1_T25/id154_Pm2-20nM_p38uW_control_1/19-10-16_JS'])
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p11.lbFCSnew/19-10-21_c-series_N1_R1-9/id154_R1-9_20nM_p35uW_1'])
 
 file_names=[]
-file_names.extend(['id154_Pm2-20nM_p38uW_control_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
+file_names.extend(['id154_R1-9_20nM_p35uW_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
 
 #################################################### Load packages
 import os #platform independent paths
@@ -65,7 +65,7 @@ for i in range(0,len(path)):
     groups_nofilter=len(locs_props) # Number of groups before filter
     if kin_filter:
         print('Applying kinetic filter ...')
-        locs_props=props._kin_filter(locs_props)
+        locs_props=props._kin_filter(locs_props,NoFrames)
     groups_filter=len(locs_props) # Number of groups after filter
     
     #### Add nearest neigbour pick and distance
@@ -95,74 +95,91 @@ import numpy as np
 plt.style.use('~/lbFCS/styles/paper.mplstyle')
 
 ############################################ Individual picks
-f=plt.figure(num=12,figsize=[4,3])
-f.subplots_adjust(bottom=0.1,top=0.99,left=0.2,right=0.99)
-f.clear()
-
-#### Autocorrelation
-ax=f.add_subplot(311)
-for g in [319]:
-    print(locs_props.loc[g,'mono_tau'],locs_props.loc[g,'mono_tau_lin'])
-    ax.plot(locs_props.loc[g,'tau'],
-            varfuncs.ac_monoexp(locs_props.loc[g,'tau'],locs_props.loc[g,'mono_A'],locs_props.loc[g,'mono_tau']),
-            '-',lw=2,c='r')
-    ax.plot(locs_props.loc[g,'tau'],
-            varfuncs.ac_monoexp(locs_props.loc[g,'tau'],locs_props.loc[g,'mono_A_lin'],locs_props.loc[g,'mono_tau_lin']),
-            '-',lw=2,c='b')
-    ax.plot(locs_props.loc[g,'tau'],locs_props.loc[g,'g'],'*')
-    ax.axhline(1,ls='--',lw=2,color='k')
-ax.set_xscale('symlog')
-#### Trace
-ax=f.add_subplot(312)
-ax.plot(locs_props.loc[g,'trace'])
-ax.set_ylim(0,2000)
-
-#### tau_d_dist
-ax=f.add_subplot(313)
-x=varfuncs.get_ecdf(locs_props.loc[g,'tau_d_dist'])[0]
-y=varfuncs.get_ecdf(locs_props.loc[g,'tau_d_dist'])[1]
-x_fit=np.linspace(0,x[-1],100)
-ax.plot(x,y)
-ax.plot(x_fit,varfuncs.ecdf_exp(x_fit,locs_props.loc[g,'tau_d'],locs_props.loc[g,'tau_d_off'],locs_props.loc[g,'tau_d_a']))
-
-ax.set_xlim(0,x.max()+1)
-ax.set_ylim(0,y.max()+0.1)
+#f=plt.figure(num=12,figsize=[4,3])
+#f.subplots_adjust(bottom=0.1,top=0.99,left=0.2,right=0.99)
+#f.clear()
+#
+##### Autocorrelation
+#ax=f.add_subplot(311)
+#for g in [319]:
+#    print(locs_props.loc[g,'mono_tau'],locs_props.loc[g,'mono_tau_lin'])
+#    ax.plot(locs_props.loc[g,'tau'],
+#            varfuncs.ac_monoexp(locs_props.loc[g,'tau'],locs_props.loc[g,'mono_A'],locs_props.loc[g,'mono_tau']),
+#            '-',lw=2,c='r')
+#    ax.plot(locs_props.loc[g,'tau'],
+#            varfuncs.ac_monoexp(locs_props.loc[g,'tau'],locs_props.loc[g,'mono_A_lin'],locs_props.loc[g,'mono_tau_lin']),
+#            '-',lw=2,c='b')
+#    ax.plot(locs_props.loc[g,'tau'],locs_props.loc[g,'g'],'*')
+#    ax.axhline(1,ls='--',lw=2,color='k')
+#ax.set_xscale('symlog')
+##### Trace
+#ax=f.add_subplot(312)
+#ax.plot(locs_props.loc[g,'trace'])
+#ax.set_ylim(0,2000)
+#
+##### tau_d_dist
+#ax=f.add_subplot(313)
+#x=varfuncs.get_ecdf(locs_props.loc[g,'tau_d_dist'])[0]
+#y=varfuncs.get_ecdf(locs_props.loc[g,'tau_d_dist'])[1]
+#x_fit=np.linspace(0,x[-1],100)
+#ax.plot(x,y)
+#ax.plot(x_fit,varfuncs.ecdf_exp(x_fit,locs_props.loc[g,'tau_d'],locs_props.loc[g,'tau_d_off'],locs_props.loc[g,'tau_d_a']))
+#
+#ax.set_xlim(0,x.max()+1)
+#ax.set_ylim(0,y.max()+0.1)
 
 
 ########################################## Distributions
-field='n_locs'
-bins=np.arange(0,9000,100)
-
-f=plt.figure(num=11,figsize=[4,3])
-f.subplots_adjust(bottom=0.1,top=0.99,left=0.2,right=0.99)
-f.clear()
-ax=f.add_subplot(111)
-#ax.hist(locs_props.loc[:,field].dropna(),bins=bins,color='gray',edgecolor='k',histtype='step',density=True);
-ax.scatter(locs_props.n_locs,locs_props.mean_frame,s=50,alpha=0.01)
-
 X=locs_props.copy()
 
-istrue=np.abs(X.mono_tau_lin-X.mono_tau)/X.mono_tau<0.2
-X=X.loc[istrue,:]
-istrue=np.abs(X.mean_frame-NoFrames*0.5)/(NoFrames*0.5)<0.15
-X=X.loc[istrue,:]
-istrue=np.abs(X.std_frame-X.std_frame.mean())/(X.std_frame.mean())<0.15
-X=X.loc[istrue,:]
-
-#istrue=X.n_locs>2300
+### mean_frame filter based on NoFrames
+#istrue=np.abs(X.mean_frame-NoFrames*0.5)/(NoFrames*0.5)<0.15
+#X=X.loc[istrue,:]
+### Filter based on deviation bewteen linear fit of first points and exponential fit 
+#istrue=np.abs(X.mono_tau_lin-X.mono_tau)/X.mono_tau<0.2
 #X=X.loc[istrue,:]
 
-ax.scatter(X.n_locs,X.mean_frame,s=50,alpha=0.01)
-print(np.sum(istrue))
+### std_frame filter based on median
+#istrue=X.std_frame>0.85*X.std_frame.median()
+#X=X.loc[istrue,:]
 
-field='std_frame'
-bins=np.arange(0,9000,100)
+### mono_tau filter based on median
+#istrue=X.mono_tau<2*X.mono_tau.median()
+#istrue=istrue & (X.mono_tau>0.5*X.mono_tau.median())
+#X=X.loc[istrue,:]
 
-f=plt.figure(num=13,figsize=[4,3])
+### mono_A filter based on median
+#istrue=X.mono_A<4*X.mono_A.median()
+#X=X.loc[istrue,:]
+
+
+f=plt.figure(num=15,figsize=[4,3])
 f.subplots_adjust(bottom=0.1,top=0.99,left=0.2,right=0.99)
 f.clear()
 ax=f.add_subplot(111)
-ax.hist(X.loc[:,field].dropna(),bins=bins,color='gray',edgecolor='r',histtype='step',density=True);
+ax.scatter(X.mono_A,X.n_locs,s=50,alpha=0.01)
+#print(np.sum(istrue))
+
+#field='mean_frame'
+#bins=np.arange(0,9000,100)
+
+#field='n_locs'
+#bins=np.arange(0,9000,100)
+
+#field='mono_A'
+#bins=np.arange(0,50,1)
+
+field='mono_tau'
+bins=np.arange(0,50,1)
+
+#field='mono_chi'
+#bins=np.arange(0,1,0.01)
+
+f=plt.figure(num=16,figsize=[4,3])
+f.subplots_adjust(bottom=0.1,top=0.99,left=0.2,right=0.99)
+f.clear()
+ax=f.add_subplot(111)
+ax.hist(X.loc[:,field].dropna(),bins=bins,color='gray',edgecolor='r',histtype='step',density=False);
         
         
         
