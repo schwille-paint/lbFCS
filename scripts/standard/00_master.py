@@ -1,7 +1,6 @@
-
-#Script to autopick on image basis and index locs accordingly
+# Localize, undrift autopick and kinetic anaylisis in one stroke!
 import os
-from lbfcs.lbfcs import master
+from lbfcs.__main__ import _lbfcs
 import picasso.render as render
 import lbfcs.picasso_wrap as pic_wrap
 import lbfcs.pyplot_wrap as plt_wrap
@@ -13,7 +12,7 @@ file_name='id154_R1-9_20nM_p35uW_1_MMStack_Pos0.ome.tif'
 
 path=os.path.join(dir_name,file_name) 
 
-movie,info,locs,locs_render,centers,locs_picked,_props,conc=master(path,
+movie,info,locs,locs_render,centers,locs_picked,_props,conc=_lbfcs(path,
                                                                    box=5,
                                                                    mng=400,
                                                                    segments=500,

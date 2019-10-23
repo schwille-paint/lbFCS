@@ -1,5 +1,13 @@
+"""
+    lbfcs/__main__.py
+    ~~~~~~~~~~~~~~~~
+
+    lbFCS command line interface
+
+    :authors: Florian Stehr 2019
+"""
+
 import os
-import importlib
 import numpy as np
 import pandas as pd
 import time
@@ -15,20 +23,38 @@ import lbfcs.pickprops as props
 import lbfcs.pickprops_calls as props_call
 import lbfcs.io
 
-importlib.reload(pic_wrap)
-
-
-def master(path,
-            box=5,
-            mng=400,
-            segments=500,
-            oversampling=5,
-            box_pick=9,
-            mng_pick=400,
-            pick_diameter=1.6,
-            ignore=1,
-            NoPartitions=30):
+#%%
+def _logo():
+    '''
+    Prints 'lbFCS logo'
+    '''
+    print('       __       __')
+    print('      / /      / /')
+    print('     / /      / /')
+    print('    / /      / /_____  ______ _____ ____')
+    print('   / /      / __    / /      /     /')
+    print('  / /      / /   / / /____  /     /___ ')
+    print(' / /____  / /___/ / /      /         /')
+    print('/______/ /_______/ /      /_________/')
+    print('')
+    print('--------------------------------------')
+    print('--------------------------------------')
     
+#%%
+def _lbfcs(path,
+           box=5,
+           mng=400,
+           segments=500,
+           oversampling=5,
+           box_pick=9,
+           mng_pick=400,
+           pick_diameter=1.6,
+           ignore=1,
+           NoPartitions=30):
+    '''
+    Complete lbFCS analysis from raw-data to kinetic analysis.
+    '''
+    _logo()
     try:
         conc=float(input('Please enter concentration in nM\n'))
     except:
@@ -160,3 +186,34 @@ def master(path,
     print('Total time: %.2f'%(time.time()-start_time))
     
     return movie,info,locs,locs_render,picks,locs_picked,locs_props,conc
+
+#%%
+def main():
+    import os
+    import sys
+    import argparse
+    
+    ### Define arguments
+    parser=argparse.ArgumentParser("lbfcs",
+                                    description='lbFCS command line interface')
+    parser.add_argument('Path',
+                        metavar='path',
+                        type=str,
+                        help='Path to .ome.tif DNA-PAINT raw data')
+    
+    ### Parse arguments
+    args=parser.parse_args()
+    path=args.Path #Path to raw data
+    
+    ### Checks
+    if not os.path.isfile(path): #Check if path leads to file
+        path=os.path.join(os.getcwd(),path)
+        if not os.path.isfile(path):
+            print('No file found for given path')
+            sys.exit()
+        
+    ### Execute
+    _lbfcs(path)
+    
+#%%
+if __name__=='__main__': main()
