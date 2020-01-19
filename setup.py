@@ -13,6 +13,6 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Operating System :: OS Independent",
    ],
-   install_requires=['picasso'], #external packages as dependencies
+   install_requires=['picasso','picasso_addon'], #external packages as dependencies
 )
 

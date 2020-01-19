@@ -313,7 +313,7 @@ def fit_tau(tau_dist,mode='ralf'):
     return tau,off,a,ulen
 
 #%%
-def get_other(df):
+def get_other(df,NoFrames):
     """ 
     Get mean and std values for a single group.
     
@@ -325,41 +325,25 @@ def get_other(df):
     Returns
     -------
     s_out : pandas.Series
-        Length: 6
+        Length: # columns of original df plus 3
         Column:
             'group' : int
         Index: 
-            'mean_frame' : float64
-                Mean of frames for all localizations in group
-            'mean_x' : float64
-                Mean x position
-            'mean_y' : float64
-                Mean y position
-            'mean_photons' : float64
-                Mean of photons for all localizations in group
-            'mean_bg' : float64
-                Mean background
-            'std_frame' : flaot64
-                Standard deviation of frames for all localizations in group
-            'std_x' : float64
-                Standard deviation of x position
-            'std_y' : float64
-                Standard deviation of y position
-            'std_photons' : float64
-                Standard deviation of photons for all localizations in group
-            'n_locs' : int
-                Number of localizations in group
+
     """
-    # Get mean values
-    s_mean=df[['frame','x','y','photons','bg']].mean()
-    # Get number of localizations
-    s_mean['n_locs']=len(df)
-    mean_idx={'frame':'mean_frame','x':'mean_x','y':'mean_y','photons':'mean_photons','mean_bg':'bg'}
-    # Get std values
-    s_std=df[['frame','x','y','photons']].std()
-    std_idx={'frame':'std_frame','x':'std_x','y':'std_y','photons':'std_photons'}
+    ### Get all mean values
+    s_out=df.mean()
+    s_out['n_locs']=len(df)/NoFrames # append no. of locs. per frame
+    ### Set photon values to median
+    s_out[['photons','bg']]=df[['photons','bg']].median()
+    ### Set lpx and lpy to standard deviation in x,y for proper visualization in picasso.render
+    s_out[['lpx','lpy',]]=df[['x','y']].std()
+    ### Add field std_frame and std_photons 
+    s_out['std_frame']=df['frame'].std()
+    s_out['std_photons']=df['photons'].std()
+  
     # Combine output
-    s_out=pd.concat([s_mean.rename(mean_idx),s_std.rename(std_idx)])
+#    s_out=pd.concat([s_mean,s_median.rename(median_idx),s_std.rename(std_idx)])
     
     return s_out
 
@@ -388,7 +372,7 @@ def get_props(df,NoFrames,ignore,mode='ralf'):
     # Call individual functions   
     s_ac=get_ac(df,NoFrames)
     s_tau=get_tau(df,ignore,mode)
-    s_other=get_other(df)
+    s_other=get_other(df,NoFrames)
     # Combine output
     s_out=pd.concat([s_ac,s_tau,s_other])
     
@@ -448,11 +432,11 @@ def _kin_filter(df,NoFrames):
     df_drop.drop(df_drop.loc[istrue].index,inplace=True)
     
     #### ... mean_frame relative deviation to NoFrames*0.5 greater than 15%
-    istrue=np.abs(df_drop.mean_frame-NoFrames*0.5)/(NoFrames*0.5)>0.15
+    istrue=np.abs(df_drop.frame-NoFrames*0.5)/(NoFrames*0.5)>0.2
     df_drop.drop(df_drop.loc[istrue].index,inplace=True)
     
     ### ... or std_frame lower than 0.85 x 50-percentile
-    istrue=df_drop.std_frame<(0.85*perc(df_drop.std_frame,50))
+    istrue=df_drop.std_frame<(0.8*perc(df_drop.std_frame,50))
     df_drop.drop(df_drop.loc[istrue].index,inplace=True)
     
     ### Boolean: mono_tau higher than 2 x 50-percentile

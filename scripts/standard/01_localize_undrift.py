@@ -10,10 +10,9 @@ import lbfcs.picasso_wrap as pic_wrap
 import lbfcs.pyplot_wrap as plt_wrap
 importlib.reload(pic_wrap)
 
-#%%
 ############################################# Load raw data
-dir_name='/fs/pool/pool-schwille-paint/Data/p11.lbFCSnew/19-10-21_c-series_N1_R1-9/id161_R1-9_20nM_p35uW_1'
-file_name='id161_R1-9_20nM_p35uW_1_MMStack_Pos0.ome.tif'
+dir_name='/fs/pool/pool-schwille-paint/Data/p06.SP-tracking/19-11-04_N01_R1/id169_R1-54#_R1s1-8_40nM_exp400_p250uW_1'
+file_name='id169_R1-54#_R1s1-8_40nM_exp400_p250uW_1_MMStack_Pos0.ome.tif'
 
 path=os.path.join(dir_name,file_name) 
 movie, info = picasso.io.load_movie(path)
@@ -22,11 +21,11 @@ movie, info = picasso.io.load_movie(path)
 ############################################# Preview spots
 #### Spot detection settings
 box=5
-mng=400
+mng=2500
 #### Image settings
-frame=8001
+frame=2500
 contrast_min=70
-contrast_max=350
+contrast_max=4000
 
 #### Show preview
 ax=plt_wrap._image_preview(movie[frame],
@@ -36,8 +35,8 @@ spots=pic_wrap._spots_in_image(movie[frame],
                                mng,
                                box)
 plt_wrap._spots_preview(spots,ax)
-ax.set_xlim(250,550)
-ax.set_ylim(250,550)
+ax.set_xlim(350,450)
+ax.set_ylim(350,450)
 #%%
 ############################################# Localize
 spots,locs=pic_wrap._localize_movie(movie,box,mng)
@@ -88,6 +87,10 @@ picasso.io.save_locs(os.path.splitext(path)[0]+'_locs_render.hdf5',
                      )
 #%%
 ############################################# Preview locs_render
+oversampling=10
+contrast_min=0
+contrast_max=100
+
 image=render.render(locs_render,
                     info,
                     oversampling=oversampling,

@@ -6,13 +6,11 @@
 # Order must be: props, picked, props, picked, ...
 
 dir_names=[]
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p12.ACAB/19-08-13_id146+id135/id146_10nM_p35uW_1/19-08-13_FS']) 
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p12.ACAB/19-08-13_id146+id135/id146_10nM_p1800uW_1/19-08-13_FS']) 
-
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p15.RiboCounting/19-12-19_NUP-GFP-Nanobody/FOV1_align']*2) 
 
 file_names=[]
-file_names.extend(['id146_10nM_p35uW_1_MMStack_Pos0.ome_locs_render_picked_props_ig1.hdf5'])
-file_names.extend(['id146_10nM_p1800uW_1_MMStack_Pos0.ome_locs_render_align_picked.hdf5'])
+file_names.extend(['200pM_final_picked_props_ig3.hdf5'])
+file_names.extend(['200pM_final_picked.hdf5'])
 
 
 #################################################### Load packages
@@ -22,7 +20,7 @@ import numpy as np
 from tqdm import tqdm as tqdm
 
 # Load user defined functions
-import lbfcs.io as io
+import picasso_addon.io as io
 
 ############################################################## Identify & Save
 #### Create list of paths

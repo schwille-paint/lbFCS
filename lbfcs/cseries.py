@@ -18,11 +18,11 @@ def _stats(df,CycleTime):
         
     """
     #### List of observables
-    out_vars=['expID','mono_tau','mono_A','tau_b','tau_d','mono_taub','mono_taud','n_events']
+    out_vars=['expID','mono_tau','mono_tau_lin','mono_A','mono_A_lin','tau_b','tau_d','mono_taub','mono_taud','n_events','n_locs']
     #### List of statistical quantities
     out_stats=['25%','50%','75%','mean','std']
     #### List of observables that will be multiplied with CycleTime to convert from frame to seconds
-    out_converts=['mono_tau','mono_taub','mono_taud','tau_b','tau_d']
+    out_converts=['mono_tau','mono_tau_lin','mono_taub','mono_taud','tau_b','tau_d']
     
     #### Get statistics defined in out_stats in all variables defined in out_vars
     df_stats=df.groupby('expID').describe()
@@ -117,16 +117,18 @@ def _plot(df_stats,df_fit):
     f.clear()
     
     ################################################ mono_tau vs concentration
-    ax=f.add_subplot(311)
-    ax=_mono_tau_onax(ax,df_stats,df_fit)
+    ax1=f.add_subplot(311)
+    ax1=_mono_tau_onax(ax1,df_stats,df_fit)
     
     ################################################ 1/mono_A vs concentration
-    ax=f.add_subplot(312)
-    ax=_mono_A_onax(ax,df_stats,df_fit)
+    ax2=f.add_subplot(312)
+    ax2=_mono_A_onax(ax2,df_stats,df_fit)
       
     ###############################################################  1/fit_taud vs conc
-    ax=f.add_subplot(313)
-    ax=_tau_d_onax(ax,df_stats,df_fit,color='b')
+    ax3=f.add_subplot(313)
+    ax3=_tau_d_onax(ax3,df_stats,df_fit,color='b')
+    
+    return [ax1,ax2,ax3]
     
 #%%
 def _prep_mono_tau(df_stats,df_fit):
@@ -139,7 +141,7 @@ def _prep_mono_tau(df_stats,df_fit):
     yerr=df_stats.loc[:,(field,'std')]
     
     popt=df_fit.loc['lbfcs',:]
-    xfit=np.arange(0,max(x)+5,0.1)
+    xfit=np.arange(0,max(x)+50,0.01)
     yfit=varfuncs.tau_of_c(xfit*1e-9,*popt)
     
     return x,y,yerr,xfit,yfit
@@ -156,10 +158,13 @@ def _mono_tau_onax(ax,df_stats,df_fit,color='red',label_data='data',label_fit='f
     ax.plot(xfit,yfit,'-',label=label_fit,c=color,lw=2)
     
     plt_wrap.ax_styler(ax)
-    ax.set_xlim(0,max(x)+5)
+    ax.set_xlim(0,max(x)+0.2*max(x))
+    ax.set_ylim(min(y)-0.3*min(y),max(y)+0.3*max(y))
     ax.set_xlabel('Concentration (nM)')
     ax.set_ylabel(r'$\langle\tau\rangle$ (s)')
     ax.legend(loc='upper right')
+    
+    return ax
        
 #%%
 def _prep_mono_A(df_stats,df_fit):
@@ -173,7 +178,7 @@ def _prep_mono_A(df_stats,df_fit):
           df_stats.loc[:,(field,'75%')]/df_stats.loc[:,(field,'50%')]**2]
     
     popt=df_fit.loc['lbfcsA',:]
-    xfit=np.arange(0,max(x)+5,0.1)
+    xfit=np.arange(0,max(x)+50,0.01)
     yfit=varfuncs.Ainv_of_c(xfit*1e-9,*popt)
     
     return x,y,yerr,xfit,yfit
@@ -190,10 +195,13 @@ def _mono_A_onax(ax,df_stats,df_fit,color='red',label_data='data',label_fit='fit
     ax.plot(xfit,yfit,'-',label=label_fit,c=color,lw=2)
     
     plt_wrap.ax_styler(ax)
-    ax.set_xlim(0,max(x)+5)
+    ax.set_xlim(0,max(x)+0.2*max(x))
+    ax.set_ylim(0,max(y)+0.3*max(y))
     ax.set_xlabel('Concentration (nM)')
     ax.set_ylabel(r'$1/A$ (a.u.)')
     ax.legend(loc='upper left')
+    
+    return ax
     
 #%%
 def _prep_tau_d(df_stats,df_fit):
@@ -207,7 +215,7 @@ def _prep_tau_d(df_stats,df_fit):
           df_stats.loc[:,(field,'75%')]/df_stats.loc[:,(field,'50%')]**2]
     
     popt=df_fit.loc['qpaint',:]
-    xfit=np.arange(0,max(x)+5,0.1)
+    xfit=np.arange(0,max(x)+50,0.01)
     yfit=varfuncs.taudinv_of_c(xfit*1e-9,*popt)
     
     return x,y,yerr,xfit,yfit
@@ -224,7 +232,10 @@ def _tau_d_onax(ax,df_stats,df_fit,color='red',label_data='data',label_fit='fit'
     ax.plot(xfit,yfit,'-',label=label_fit,c=color,lw=2)
     
     plt_wrap.ax_styler(ax)
-    ax.set_xlim(0,max(x)+5)
+    ax.set_xlim(0,max(x)+0.2*max(x))
+    ax.set_ylim(0,max(y)+0.3*max(y))
     ax.set_xlabel('Concentration (nM)')
     ax.set_ylabel(r'$1/\tau_d$ (Hz)')
     ax.legend(loc='upper left')
+    
+    return ax

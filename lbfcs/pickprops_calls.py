@@ -211,8 +211,8 @@ def props_add_nn(df):
     #### Calculate minimal radial distance of group to all neigbours
     def get_nn(df,x,y,group_ids):
         #### Coordinates and id of reference group
-        x0=df.mean_x.values # x-coordinate
-        y0=df.mean_y.values # y coordinate
+        x0=df.x.values # x-coordinate
+        y0=df.y.values # y coordinate
         
         #### Get nearest neighbour
         r=np.sqrt((x-x0)**2+(y-y0)**2) # Radial distance
@@ -228,8 +228,8 @@ def props_add_nn(df):
     #### reset index to get 'group' column
     df.reset_index(inplace=True)
     #### Get coordinates of all groups in df and ids
-    x=df.mean_x.values
-    y=df.mean_y.values
+    x=df.x.values
+    y=df.y.values
     group_ids=df.group.values
     #### Apply get_nn
     tqdm.pandas() # For progressbar under apply

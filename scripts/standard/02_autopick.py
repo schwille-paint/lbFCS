@@ -13,10 +13,10 @@ import lbfcs.pyplot_wrap as plt_wrap
 importlib.reload(pic_wrap)
 importlib.reload(plt_wrap)
 
-#%%
-############################################################## Load data
-dir_name='/fs/pool/pool-schwille-paint/Data/p11.lbFCSnew/19-10-21_c-series_N1_R1-9/id161_R1-9_20nM_p35uW_1'
-file_name='id161_R1-9_20nM_p35uW_1_MMStack_Pos0.ome_locs_render.hdf5'
+############################################################## Load datafile
+
+dir_name='/fs/pool/pool-schwille-paint/Data/p06.SP-tracking/19-11-07_th_p-exp-scan_PEG3k20%/id169_R1-54#_R1s1-8_20nM_exp100_p114uW_1/19-11-07_FS'
+file_name='id169_R1-54#_R1s1-8_20nM_exp100_p114uW_1_MMStack_Pos0.ome_locs_filter_render.hdf5'
 
 path=os.path.join(dir_name,file_name) 
 locs,info=picasso.io.load_locs(path)
@@ -28,17 +28,19 @@ oversampling=5
 image=render.render(locs,
                     info,
                     oversampling=oversampling,
+#                    blur_method='gaussian',
+#                    min_blur_width=0.05,
                     )[1]
 
 #%%
 ############################################################## Preview picks (without fitting)
 #### Spot detection settings
-box=9
-mng=300
+box=11
+mng=1500
 pick_diameter=1.6
 #### Contrast settings
 contrast_min=0
-contrast_max=50
+contrast_max=100
 
 #### Show preview
 ax=plt_wrap._image_preview(image,
@@ -48,13 +50,15 @@ ax=plt_wrap._image_preview(image,
                            )
 spots=pic_wrap._spots_in_image(image,mng,box)
 plt_wrap._spots_preview(spots,ax)
-ax.set_xlim(200,600)
-ax.set_ylim(200,600)
+ax.set_xlim(100,700)
+
+ax.set_ylim(100,700)
+
 
 #%%
 ############################################################## Detect picks
 print('Pick detection ...')
-picks=pic_wrap._spots_in_image(image,mng,box,fit=True)
+picks=pic_wrap._spots_in_image(image,mng,box,fit=False)
 
 #### Save picks
 lbfcs.io._save_picks(pic_wrap._coordinate_convert(picks,
@@ -63,16 +67,15 @@ lbfcs.io._save_picks(pic_wrap._coordinate_convert(picks,
                      pick_diameter,
                      os.path.splitext(path)[0]+'_autopick.yaml')
 
-#%%
 ############################################################## Show picks (with fitting)
-ax=plt_wrap._image_preview(image,
-                           contrast_min=contrast_min,
-                           contrast_max=contrast_max,
-                           fignum=14)
-plt_wrap._spots_preview(picks,
-                        ax)
-ax.set_xlim(200,600)
-ax.set_ylim(200,600)
+#ax=plt_wrap._image_preview(image,
+#                           contrast_min=contrast_min,
+#                           contrast_max=contrast_max,
+#                           fignum=14)
+#plt_wrap._spots_preview(picks,
+#                        ax)
+#ax.set_xlim(200,600)
+#ax.set_ylim(200,600)
 #%%
 ############################################################## Get locs_picked and save
 print('Indexing & sorting ...')

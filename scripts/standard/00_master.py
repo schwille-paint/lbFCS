@@ -7,8 +7,8 @@ import lbfcs.pyplot_wrap as plt_wrap
 #%%
 
 ############################################################## Load data
-dir_name='/fs/pool/pool-schwille-paint/Data/p11.lbFCSnew/19-10-21_c-series_N1_R1-9/id154_R1-9_20nM_p35uW_1'
-file_name='id154_R1-9_20nM_p35uW_1_MMStack_Pos0.ome.tif'
+dir_name='/fs/pool/pool-schwille-paint/Data/p05.crowding/19-10-28_8000_PEG_15%/id154_1_25nM_20%_8000_PEG_38uW_1'
+file_name='id154_1_25nM_20%_8000_PEG_38uW_1_MMStack_Pos0.ome.tif'
 
 path=os.path.join(dir_name,file_name) 
 
