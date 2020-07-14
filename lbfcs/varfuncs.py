@@ -1,12 +1,19 @@
 import numpy as np
 
 #%%
-def ac_monoexp(t,A,tau):
+def ac_monoexp(l,A,tau):
     """
-    Fit function for mono-exponential fit of autocorrelation function:
-        g(t)=A*exp(-t/tau)+1
+    Fit function for mono-exponential fit of autocorrelation function: ``g(l)=A*exp(-l/tau)+1``
     """
-    g=A*np.exp(-t/tau)+1.
+    g=A*np.exp(-l/tau)+1.
+    return g
+
+#%%
+def ac_monoexp_lin(l,A,tau):
+    '''
+    Linearized fit function for mono-exponential fit of autocorrelation function: ``-log(g(l)-1)=l/tau-log(A)``
+    '''
+    g=l/tau-np.log(A)
     return g
 
 #%%

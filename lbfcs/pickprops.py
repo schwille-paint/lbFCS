@@ -1,214 +1,238 @@
 # Import modules
+import os
 import numpy as np
 import scipy.optimize
 import importlib
 import pandas as pd
 from tqdm import tqdm
+import dask.dataframe as dd
+import multiprocessing as mp
+import time
+import warnings
+warnings.filterwarnings("ignore")
+
 # Import own modules
 import lbfcs.varfuncs as varfuncs
-importlib.reload(varfuncs)
 import lbfcs.multitau as multitau
+import picasso_addon.io as addon_io
+
+importlib.reload(varfuncs)
 importlib.reload(multitau)
 
 #%%
-def get_ac(df,NoFrames):
-    """ 
-    1) Convert localizations of single pick to trace
-        - trace(frame)=0 if no localization in frame
-        - else trace(frame)=photons
-        - length of trace will be NoFrames
-    2) Compute normalized multi-tau autocorrelation function of trace -> help(multitau.autocorrelate)
-    3) Least square fit of function f(tau)=mono_A*exp(-tau/mono_tau)+1 to normalized autocorrelation function -> help(pickprops.fit_ac_single)
+def trace_and_ac(df,NoFrames):
+    '''
+    Get fluorescence trace for single pick and normalized multitau autocorrelation function (AC) employing multitau.autocorrelate().
+
+    Args:
+        df (pandas.DataFrame): Single group picked localizations. See picasso.render and picasso_addon.autopick.
+        NoFrames (int):        No. of frames in measurement, i.e. duration in frames.
+
+    Returns:
+        list:
+        - [0] (numpy.array): Fluorescence trace of ``len=NoFrames``
+        - [1] (numpy.array): First column corresponds to lagtimes, second to autocorrelation value.
+
+    '''
     
-    Parameters
-    ---------
-    df : pandas.DataFrame
-        Picked localizations for single group. Required fields are 'frame' and 'photons'
-    NoFrames : int
-        Number of frames of localized image stack
-    
-    Returns
-    -------
-    s_out : pandas.Series
-        Length: 6
-        Column:
-            'group' : int
-        Index: 
-            'trace' : numpy.ndarray
-                trace
-            'tau' : numpy.ndarray
-                tau of autocorr.
-            'g' : numpy.ndarray
-                g(tau) autocorrelation value
-            'mono_A' : float64
-                Amplitude of monoexponential fit function
-            'mono_tau' : float64
-                Correlation time of monoeponential fit function
-            'mono_chi' : float64
-                Square root of chisquare value of fit with sigma=1 for all data points
-    """
-    ###################################################### Prepare trace
-    # Get absolute values of photons, since sometimes negative values can be found
-    df['photons']=df['photons'].abs() 
-    # Sum multiple localizations in single frame
-    df_sum=df[['frame','photons']].groupby('frame').sum()
-    # Define trace of length=NoFrames with zero entries
+    ############################# Prepare trace
+    df['photons']=df['photons'].abs() # Sometimes nagative values??
+    df_sum=df[['frame','photons']].groupby('frame').sum() # Sum multiple localizations in single frame
+
     trace=np.zeros(NoFrames)
-    # Add (summed) photons to trace for each frame
-    trace[df_sum.index.values]=df_sum['photons'].values
-    ###################################################### Generate autocorrelation
-    ac=multitau.autocorrelate(trace,m=16, deltat=1,
-                                 normalize=True,copy=False, dtype=np.float64())
+    trace[df_sum.index.values]=df_sum['photons'].values # Add (summed) photons to trace for each frame
     
-    ###################################################### Fit mono exponential decay to autocorrelation
-    mono_A,mono_tau,mono_chi=fit_ac_mono(ac) # Get fit
-    mono_A_lin,mono_tau_lin=fit_ac_mono_lin(ac) # Get fit
-    ###################################################### Calculate tau_b, tau_d from mono, just valid for N=1
-    mono_taub=(mono_A+1)*(mono_tau/mono_A)
-    mono_taud=(mono_A+1)*(mono_tau)
-    ###################################################### Assignment to series 
-    s_out=pd.Series({'trace':trace,
-                     'tau':ac[1:-15,0],'g':ac[1:-15,1], # Autocorrelation function
-                     'mono_A':mono_A,'mono_tau':mono_tau,'mono_chi':mono_chi, # mono exponential fit results
-                     'mono_taub':mono_taub,'mono_taud':mono_taud, # tau_b, tau_d for mono just valid for N=1
-                     'mono_A_lin':mono_A_lin,'mono_tau_lin':mono_tau_lin}) # mono exponential fit results for linearized fit
+    ############################# Autocorrelate trace
+    ac=multitau.autocorrelate(trace,
+                              m=32,
+                              deltat=1,
+                              normalize=True,
+                              copy=False,
+                              dtype=np.float64(),
+                              )
+    
+    return [trace,ac]
+    
+#%%
+def fit_ac(ac,max_it=10):
+    ''' 
+    Exponential iterative version of AC fit. 
+
+    '''
+    ###################################################### Define start parameters
+    popt=np.empty([2]) # Init
+    
+    popt[0]=ac[1,1]-1                                               # Amplitude
+    
+    l_max=8                                                         # Maximum lagtime for correlation time estimate  
+    try: l_max_nonan=np.where(np.isnan(-np.log(ac[1:,1]-1)))[0][0]  # First lagtime with NaN occurence
+    except: l_max_nonan=len(ac)-1
+    l_max=min(l_max,l_max_nonan)                                    # Finite value check
+    
+    popt[1]=(-np.log(ac[l_max,1]-1)+np.log(ac[1,1]-1))              # Correlation time tau corresponds to inverse of slope                          
+    popt[1]/=(l_max-1)
+    popt[1]=1/popt[1]
+    
+    l_max=-15                                                       # Maximum lagtime used for first fit
+    
+    ###################################################### Fit boundaries
+    lowbounds=np.array([0,0])
+    upbounds=np.array([np.inf,np.inf])
+    
+    ###################################################### Apply iterative fit
+    if max_it==0: return popt[0],popt[1],l_max,0,np.nan
+    
+    else:
+        popts=np.zeros((max_it,2))
+        for i in range(max_it):
+            l_max_return=l_max # Returned l_max corresponding to popt return
+            try:
+                ### Fit
+                popts[i,:],pcov=scipy.optimize.curve_fit(varfuncs.ac_monoexp,
+                                                         ac[1:l_max,0],
+                                                         ac[1:l_max,1],
+                                                         popt,
+                                                         bounds=(lowbounds,upbounds),
+                                                         method='trf')
+                
+                ### Compare to previous fit result
+                delta=np.max((popts[i,:]-popt)/popt)*100
+                if delta<0.25: break
+            
+                ### Update for next iteration
+                popt=popts[i,:]
+                l_max=int(np.round(popt[1]*0.8))       # Optimum lagtime
+                l_max=np.argmin(np.abs(ac[:,0]-l_max)) # Get lagtime closest to optimum (multitau!)
+                l_max=max(3,l_max)                     # Make sure there are enough data points to fit
+                
+            except:
+                popt=np.ones(2)*np.nan
+                delta=np.nan
+                break
+        
+        return popt[0],popt[1],ac[l_max_return,0],i+1,delta
+
+#%%
+def fit_ac_lin(ac,max_it=10):
+    ''' 
+    Linearized iterative version of AC fit. 
+
+    '''
+    ###################################################### Define start parameters
+    popt=np.empty([2]) # Init
+    
+    popt[0]=ac[1,1]-1                                               # Amplitude
+    
+    l_max=8                                                         # Maximum lagtime   
+    try: l_max_nonan=np.where(np.isnan(-np.log(ac[1:,1]-1)))[0][0]  # First lagtime with NaN occurence
+    except: l_max_nonan=len(ac)-1
+    l_max=min(l_max,l_max_nonan)                                    # Finite value check
+    
+    popt[1]=(-np.log(ac[l_max,1]-1)+np.log(ac[1,1]-1))              # Correlation time tau corresponds to inverse of slope                          
+    popt[1]/=(l_max-1)
+    popt[1]=1/popt[1]
+    
+    ###################################################### Fit boundaries
+    lowbounds=np.array([0,0])
+    upbounds=np.array([np.inf,np.inf])
+    
+    ###################################################### Apply iterative fit
+    if max_it==0: return popt[0],popt[1],l_max,0,np.nan
+    
+    else:
+        popts=np.zeros((max_it,2))
+        for i in range(max_it):
+            l_max_return=l_max # Returned l_max corresponding to popt return
+            try:
+                ### Fit
+                popts[i,:],pcov=scipy.optimize.curve_fit(varfuncs.ac_monoexp_lin,
+                                                         ac[1:l_max,0],
+                                                         -np.log(ac[1:l_max,1]-1),
+                                                         popt,
+                                                         bounds=(lowbounds,upbounds),
+                                                         method='trf')
+                
+                ### Compare to previous fit result
+                delta=np.max((popts[i,:]-popt)/popt)*100
+                if delta<0.25: break
+            
+                ### Update for next iteration
+                popt=popts[i,:]
+                l_max=int(np.round(popt[1]*0.8))       # Optimum lagtime
+                l_max=np.argmin(np.abs(ac[:,0]-l_max)) # Get lagtime closest to optimum (multitau!)
+                l_max=max(3,l_max)                     # Make sure there are enough data points to fit
+                l_max=min(l_max,l_max_nonan)           # Make sure there are no NaNs before maximum lagtime
+                
+            except:
+                popt=np.ones(2)*np.nan
+                delta=np.nan
+                break
+        
+        return popt[0],popt[1],ac[l_max_return,0],i+1,delta
+
+#%%
+def props_fcs(df,NoFrames,max_it=10):
+    """ 
+    Apply least square fit to normalized autocorrelation function (AC) using ``AC(l) = A*exp(-l/tau) + 1`` by two methods:
+        
+        - Exponential least square fit using full AC (``A``,``tau``). See fit_ac().
+        - Linearized fitting (by applying logarithmic transformation) using only first 8 lagtimes of AC (``A_lin``,``tau_lin``). See fit_ac_lin().
+    
+    Calculate brightness value B, i.e. variance/mean of fluorescence trace (``B``).
+    
+    Args:
+        df (pandas.DataFrame): Single group picked localizations. See picasso.render and picasso_addon.autopick.
+        NoFrames (int):        No. of frames in measurement, i.e. duration in frames.
+    
+    Returns:
+        pandas.Series:
+        - ``A`` Amplitude resulting from exponential fit to AC.
+        - ``tau`` Autocorrelation time resulting from exponential fit to AC.
+        - ``A_lin`` Amplitude resulting from linearized fit to AC.
+        - ``tau_lin`` Autocorrelation time resulting from resulting fit to AC.
+        - ``B`` Brighntess fo fluorescence trace, i.e. its variance/mean.
+    """
+    
+    ############################# Get trace and ac
+    trace,ac=trace_and_ac(df,NoFrames)
+    ac_zeros=np.sum(ac[1:,1]<0.1) # Number of lagtimes with almost zero ac values, can be used for filtering
+    
+    ############################# Get autocorrelation fit results
+    A,tau,lmax,it,delta                     = fit_ac(ac,1)
+    A_lin,tau_lin,lmax_lin,it_lin,delta_lin = fit_ac_lin(ac,max_it)
+
+    ############################# Calculate brightness value B using trace
+    B=np.var(trace)/np.mean(trace)
+
+    ############################# Assignment to series 
+    s_out=pd.Series({'ac_zeros':ac_zeros,                                                                      # Number of almost zeros entries in AC
+                     'A':A,'tau':tau,'lmax':lmax,'it':it,'delta':delta,                                        # AC fit results
+                     'A_lin':A_lin,'tau_lin':tau_lin,'lmax_lin':lmax_lin,'it_lin':it_lin,'delta_lin':delta_lin,# AC linearized iterative fit results
+                     'B':B,                                                                                    # Brightness
+                     }) 
     
     return s_out
 
 #%%
-def fit_ac_mono(ac):
-    """ 
-    Least square fit of function f(tau)=mono_A*exp(-tau/mono_tau)+1 to normalized autocorrelation function.
+def darkbright_times(df,ignore):
+    ''' 
+    Compute bright, dark-time distributions and number of events with allowed ``ignore`` value a la picasso.render.
     
-    Parameters
-    ---------
-    ac : numpy.ndarray
-        1st column should correspond to delay time tau of autocorrelation function.
-        2nd column should correspond to value g(tau) of autocorrelation function
-    
-    Returns
-    -------
-    mono_A : float64
-        Amplitude of monoexponential fit function
-    mono_tau : float64
-        Correlation time of monoeponential fit function
-    mono_chi : float64
-        Chisquare value of fit with sigma=1 for all data points   
-    """
-    ###################################################### Define start parameters
-    p0=np.empty([2])
-    p0[0]=ac[1,1] # Amplitude
-    halfvalue=1.+(p0[0]-1.)/2 # Value of half decay of ac
-    p0[1]=np.argmin(np.abs(ac[:,1]-halfvalue)) # tau
-    ###################################################### Fit boundaries
-    lowbounds=np.array([0,0])
-    upbounds=np.array([np.inf,np.inf])
-    ###################################################### Fit data
-    try:
-        popt,pcov=scipy.optimize.curve_fit(varfuncs.ac_monoexp,ac[1:-15,0],ac[1:-15,1],p0,bounds=(lowbounds,upbounds),method='trf')
-    except RuntimeError:
-        popt=p0
-    except ValueError:
-        popt=p0
-    except TypeError:
-        popt=p0
-    
-    ###################################################### Calculate chisquare    
-    chisquare=np.sum(np.square(varfuncs.ac_monoexp(ac[:,0],*popt)-ac[:,1]))/((len(ac)-2))
-    
-    return popt[0],popt[1],np.sqrt(chisquare)
-
-#%%
-def fit_ac_mono_lin(ac):
-    """ 
-    Least square fit of function f_lin(tau)=-log(mono_A)-tau/mono_tau to linearized autocorrelation function -log(g(tau)-1).
-    Only first 8 points of autocorrelation are used for fitting 
-    
-    Parameters
-    ---------
-    ac : numpy.ndarray
-        1st column should correspond to delay time tau of autocorrelation function.
-        2nd column should correspond to value g(tau) of autocorrelation function
-    
-    Returns
-    -------
-    mono_A_lin : float64
-        Amplitude of monoexponential fit function
-    mono_tau_lin : float64
-        Correlation time of monoeponential fit function   
-    """
-    ###################################################### Fit function definition
-    def ac_monoexp_lin(t,A,tau):
-        g=t/tau-np.log(A)
-        return g
-    ###################################################### Define start parameters
-    p0=np.empty([2])
-    p0[0]=ac[1,1] # Amplitude
-    halfvalue=1.+(p0[0]-1.)/2 # Value of half decay of ac
-    p0[1]=np.argmin(np.abs(ac[:,1]-halfvalue)) # tau
-    ###################################################### Fit boundaries
-    lowbounds=np.array([0,0])
-    upbounds=np.array([np.inf,np.inf])
-    ###################################################### Fit data
-    try:
-        popt,pcov=scipy.optimize.curve_fit(ac_monoexp_lin,ac[1:10,0],-np.log(ac[1:10,1]-1),p0,bounds=(lowbounds,upbounds),method='trf')
-    except RuntimeError:
-        popt=p0
-    except ValueError:
-        popt=p0
-    except TypeError:
-        popt=p0
-    
-    ###################################################### Calculate chisquare    
-    chisquare=np.sum(np.square(ac_monoexp_lin(ac[1:10,0],*popt)-np.log(ac[1:10,1]-1)))/(len(ac)-2)
-    
-    return popt[0],popt[1]
-#%%
-def get_tau(df,ignore=1,mode='ralf'):
-    """ 
-    1) Computes bright, dark-time distributions and number of events a la Picasso
-    2) Least square fit of function f(tau)=1-exp(-t/tau) to experimental continuous distribution function (ECDF) 
-        -> help(pickprops.fit_tau)
-    
-    Parameters
-    ---------
-    df : pandas.DataFrame
-        Picked localizations for single group. Required columns are 'frame'.
-    ignore : int
-        Disrupted binding events by duration ignore will be treated as single event with bright time of 
-        total duration of bridged events. Defaults to ignore=1.
+    Args:
+        df(pandas.DataFrame): Single group picked localizations. See picasso.render and picasso_addon.autopick.
+        ignore(int=1):         Disrupted binding events by duration ignore will be treated as single event with bright time of total duration of bridged events.
         
-    
-    Returns
-    -------
-    s_out : pandas.Series
-        Length: 9
-        Column:0
-            'group' : int
-        Index: 
-            'tau_b_dist' : numpy.ndarray
-                Distribution of bright times with ignore value taken into account
-            'tau_b' : float64
-                Fit result of exponential function to bright time ECDF
-            'tau_b_lin' : float64
-                Fit result of line with offset=0 to linearized bright time ECDF given by -ln(1-ECDF)
-            'tau_d_dist' : numpy.ndarray
-                Distribution of dark times with ignore value taken into account
-            'tau_b' : float64
-                Fit result of exponential function to dark time ECDF
-            'tau_b_lin' : float64
-                Fit result of line with offset=0 to linearized dark time ECDF given by -ln(1-ECDF)
-            'n_events' : float64
-                Number of binding events
-            'mean_event_times' : float64
-                Mean of event times
-            'std_event_times' : float64
-                Standard deviation of event times
-    """
+    Returns:
+        list:
+        - [0](numpy.array): Distribution of dark times with ``ignore`` value taken into account.
+        - [1](numpy.array): Distribution of bright times with ``ignore`` value taken into account.
+        - [2](int):         Number of binding events with ``ignore`` value taken into account.
+    '''
     
     frames=df['frame'].values # Get sorted frames as numpy.ndarray
     frames.sort()
-    ################################################################ Get tau_d distribution
+    
+    ############################# Dark time distribution
     dframes=frames[1:]-frames[0:-1] # Get frame distances i.e. dark times
     dframes=dframes.astype(float) # Convert to float values for later multiplications
     
@@ -221,7 +245,7 @@ def get_tau(df,ignore=1,mode='ralf'):
     tau_d_dist=tau_d_dist[tau_d_dist>(ignore)] # Remove all dark times>ignore
     tau_d_dist=np.sort(tau_d_dist) # Sorted tau_d distribution
  
-    ################################################################ Get tau_b_distribution
+    ############################# Bright time distribution
     dframes[dframes<=(ignore+1)]=0 # Set (bright) frames to 0 that have nnext neighbor distance <= ignore+1
     dframes[dframes>1]=1 # Set dark frames to 1
     dframes[dframes<1]=np.nan # Set bright frames to NaN
@@ -237,42 +261,28 @@ def get_tau(df,ignore=1,mode='ralf'):
     tau_b_dist=frames_end-frames_start+1 # get tau_b distribution
     tau_b_dist=np.sort(tau_b_dist) # sort tau_b distribution
     
-    ################################################################# Number of events and their timing
-    n_events=float(np.size(tau_b_dist)) # Number of binding events
+    ############################# Number of events
+    n_events=float(np.size(tau_b_dist))
 
-    ################ Extract tau's
-    # Bright time
-    tau_b,tau_b_off,tau_b_a,tau_b_ulen=fit_tau(tau_b_dist,mode)
-    # Dark time
-    tau_d,tau_d_off,tau_d_a,tau_d_ulen=fit_tau(tau_d_dist,mode)
-
-    ###################################################### Assignment to series 
-    s_out=pd.Series({'tau_b_dist':tau_b_dist,'tau_b':tau_b,'tau_b_off':tau_b_off,'tau_b_a':tau_b_a,'tau_b_mean':np.mean(tau_b_dist), # Bright times
-                     'tau_d_dist':tau_d_dist,'tau_d':tau_d,'tau_d_off':tau_d_off,'tau_d_a':tau_d_a,'tau_d_ulen':tau_d_ulen,'tau_d_mean':np.mean(tau_d_dist), # Dark times
-                     'n_events':n_events}) # Events
-    return s_out    
+    return [tau_d_dist,tau_b_dist,n_events]
+   
 #%%     
-def fit_tau(tau_dist,mode='ralf'):
-    """ 
-    Least square fit of function f(t)=a*(1-exp(-t/tau))+off to experimental continuous distribution function (ECDF) of tau_dist
-    -> help(varfuncs.get_ecdf) equivalent to:
-        matplotlib.pyplot.hist(tau_dist,bins=numpy.unique(tau_dist),normed=True,cumulative=True)
+def fit_times(tau_dist,mode='ralf'):
+    ''' 
+    Least square fit of function ``ECDF(t)=a*(1-exp(-t/tau))+off`` to experimental continuous distribution function (ECDF) of bright or dark times distribution ``tau_dist``.
     
-    Parameters
-    ---------
-    tau_dist : numpy.ndarray
-        1 dimensional array of bright or dark times t 
-    mode: str
-        If mode is 'ralf' amplitude and offset will be floating freely, else fit will be performed with fixed parameters off=0 and a=1 as it was published
-    Returns
-    -------
-    tau : float64
-        tau as obtained by fitting f(t) to ECDF(t) with least squares.
-    off : float64
-        off as obtained by fitting f(t) to ECDF(t) with least squares. Set to 0 for non 'ralf' mode.
-    a : float64
-        a as obtained by fitting f(t) to ECDF(t) with least squares. Set to 1 for non 'ralf' mode.
-    """
+    Args:
+        tau_dist(numpy.array): Dark or bright times distribution as returned by darkbright_times()
+        mode(str):             If mode is 'ralf' amplitude and offset will be floating freely, else fit will be performed with fixed parameters off=0 and a=1 as it was published
+    
+    Returns:
+        list:
+        - [0](float): Time fit result ``tau``
+        - [1](float): Offset fit result ``off``. Set to 0 for non ``'ralf'`` mode.
+        - [2](float): Amplitude fit result ``a``. Set to 1 for non ``'ralf'`` mode.
+        - [3] (int):  Number of unique times in given bright or dark times distribution ``tau_dist``.
+    '''
+    
     #### Get number of unique values in tau distribution to decide if fitting makes sense
     ulen=len(np.unique(tau_dist))
     
@@ -310,71 +320,71 @@ def fit_tau(tau_dist,mode='ralf'):
         except TypeError:
             tau,off,a=np.nan,np.nan,np.nan
             
-    return tau,off,a,ulen
+    return [tau,off,a,ulen]
 
 #%%
-def get_other(df,NoFrames):
-    """ 
-    Get mean and std values for a single group.
+def props_qpaint(df,ignore,mode='ralf'):
+    '''
+    Compute bright, dark-time distributions and number of events with allowed ``ignore`` value a la picasso.render. See darkbright_times().
+    Least square fit of function ``ECDF(t)=a*(1-exp(-t/tau))+off`` to experimental continuous distribution function (ECDF) of bright or dark times distribution. See fit_times().
     
-    Parameters
-    ---------
-    df : pandas.DataFrame
-        Picked localizations for single group. Required columns are 'frame'.
+    '''
+    
+    ################ Get bright and dark time distributions
+    tau_d_dist,tau_b_dist,n_events = darkbright_times(df,ignore=1)
+    
+    ################ Extract average bright and dark times
+    tau_b,tau_b_off,tau_b_a,tau_b_ulen = fit_times(tau_b_dist,mode)  # Bright time
+    tau_d,tau_d_off,tau_d_a,tau_d_ulen = fit_times(tau_d_dist,mode)  # Dark time
 
-    Returns
-    -------
-    s_out : pandas.Series
-        Length: # columns of original df plus 3
-        Column:
-            'group' : int
-        Index: 
+    ###################################################### Assignment to series 
+    s_out=pd.Series({'tau_b':tau_b,'tau_b_off':tau_b_off,'tau_b_a':tau_b_a,'tau_b_mean':np.mean(tau_b_dist), # Bright times
+                     'tau_d':tau_d,'tau_d_off':tau_d_off,'tau_d_a':tau_d_a,'tau_d_ulen':tau_d_ulen,'tau_d_mean':np.mean(tau_d_dist), # Dark times
+                     'n_events':n_events}) # Events
+    return s_out  
+#%%
+def props_other(df,NoFrames):
+    '''
+    Get other properties.
 
-    """
+    '''
     ### Get all mean values
     s_out=df.mean()
+    
+    ### Localizations
     s_out['n_locs']=len(df)/NoFrames # append no. of locs. per frame
-    ### Set photon values to median
-    s_out[['photons','bg']]=df[['photons','bg']].median()
+    
+    ### Photons
+    s_out[['photons','bg']]=df[['photons','bg']].mean()
+    s_out['std_photons']=df['photons'].std(ddof=0)   # Biased standard deviation
+    s_out['std_bg']=df['bg'].std(ddof=0)             # Biased standard deviation
+    
     ### Set lpx and lpy to standard deviation in x,y for proper visualization in picasso.render
     s_out[['lpx','lpy',]]=df[['x','y']].std()
-    ### Add field std_frame and std_photons 
-    s_out['std_frame']=df['frame'].std()
-    s_out['std_photons']=df['photons'].std()
-  
-    # Combine output
-#    s_out=pd.concat([s_mean,s_median.rename(median_idx),s_std.rename(std_idx)])
+    
+    ### Add field std_frame
+    s_out['std_frame']=df['frame'].std(ddof=0) # Biased standard deviation
     
     return s_out
 
 #%%
 def get_props(df,NoFrames,ignore,mode='ralf'):
-    """ 
-    Wrapper function to combine:
-        - pickprops.get_ac(df,NoFrames)
-        - pickprops.get_tau(df,ignore)
-        - pickprops.get_other(df)
+    ''' 
+    Combine outputs of:
+        
+        - prop_fcs(df,NoFrames)
+        - props_qpaint(df,ignore,mode)
+        - props_other(df)
     
-    Parameters
-    ---------
-    df : pandas.DataFrame
-        'locs' of locs_picked.hdf5 as given by Picasso
-    NoFrames: int
-        Number of frames of image stack corresponding to locs_picked.hdf5
-    ignore: int
-        Ignore as defined in props.get_tau
-    Returns
-    -------
-    s : pandas.DataFrame
-        Columns as defined in individual functions get_ac, get_tau. Index corresponds to 'group'.
-    """
+    '''
     
-    # Call individual functions   
-    s_ac=get_ac(df,NoFrames)
-    s_tau=get_tau(df,ignore,mode)
-    s_other=get_other(df,NoFrames)
-    # Combine output
-    s_out=pd.concat([s_ac,s_tau,s_other])
+    ### Call individual functions   
+    s_fcs=props_fcs(df,NoFrames)
+    s_qpaint=props_qpaint(df,ignore,mode)
+    s_other=props_other(df,NoFrames)
+    
+    ### Combine output
+    s_out=pd.concat([s_fcs,s_qpaint,s_other])
     
     return s_out
 
@@ -383,75 +393,138 @@ def apply_props(df,conc,NoFrames,ignore,mode='ralf'):
     """
     Applies pick_props.get_props(df,NoFrames,ignore) to each group in non-parallelized manner. Progressbar is shown under calculation.
     """
+    df=df.set_index('group')
     tqdm.pandas() # For progressbar under apply
     df_props=df.groupby('group').progress_apply(lambda df: get_props(df,NoFrames,ignore,mode))
-    df_props['conc']=conc
-    
+
     return df_props
 
 #%%
-def apply_props_dask(df,conc,NoFrames,ignore,NoPartitions,mode='ralf'): 
+def apply_props_dask(df,conc,NoFrames,ignore,mode='ralf'): 
     """
     Applies pick_props.get_props(df,NoFrames,ignore) to each group in parallelized manner using dask by splitting df into 
     various partitions.
     """
-    ########### Load packages
-#    import dask
-#    import dask.multiprocessing
-    import dask.dataframe as dd
-    from dask.diagnostics import ProgressBar
-    ########### Globally set dask scheduler to processes
-#    dask.config.set(scheduler='processes')
-#    dask.set_options(get=dask.multiprocessing.get)
-    ########### Partionate df using dask for parallelized computation
-    df=df.set_index('group') # Set group as index otherwise groups will be split during partition!!!
-    df=dd.from_pandas(df,npartitions=NoPartitions) 
+     
     ########### Define apply_props for dask which will be applied to different partitions of df
     def apply_props_2part(df,NoFrames,ignore,mode): return df.groupby('group').apply(lambda df: get_props(df,NoFrames,ignore,mode))
-    ########### Map apply_props_2part to every partition of df for parallelized computing    
-    with ProgressBar():
-        df_props=df.map_partitions(apply_props_2part,NoFrames,ignore,mode).compute(scheduler='processes')
-    df_props['conc']=conc
+
+    ########## Partinioning and computing
+    t0=time.time() # Timing
+    
+    ### Set up DataFrame for dask
+    df=df.set_index('group') # Set group as index otherwise groups will be split during partition!!! 
+    NoPartitions=max(1,int(0.8 * mp.cpu_count()))
+    df=dd.from_pandas(df,npartitions=NoPartitions)                
+        
+    ### Compute using running dask cluster, if no cluster is running dask will start one with default settings (maybe slow since not optimized for computation!)
+    df_props=df.map_partitions(apply_props_2part,NoFrames,ignore,mode).compute()
+    
+    dt=time.time()-t0
+    print('... Computation time %.1f s'%(dt)) 
+    
     return df_props
 
+
 #%%
-def _kin_filter(df,NoFrames):
-    """ 
-    Kinetics filter for '_props' DataFrame as generated by pickprops.py. 
-          
-    """
-    #### Function definitions percentiles
-    from numpy import percentile as perc
+def cluster_setup_howto():
+    '''
+    Print instruction howto start a DASK local cluster for efficient computation of apply_props_dask().
+    Fixed ``scheduler_port=8787`` is used to easily reconnect to cluster once it was started.
+    
+    '''
 
-    #### Copy df
-    df_drop=df.copy()
-             
-    ####Remove groups with ...
-    #### ... deviation between linear fit and exponential fit higher than 20%
-    istrue=(np.abs(df_drop.mono_tau_lin-df_drop.mono_tau)/df_drop.mono_tau)>0.2
-    df_drop.drop(df_drop.loc[istrue].index,inplace=True)
-    
-    #### ... mean_frame relative deviation to NoFrames*0.5 greater than 15%
-    istrue=np.abs(df_drop.frame-NoFrames*0.5)/(NoFrames*0.5)>0.2
-    df_drop.drop(df_drop.loc[istrue].index,inplace=True)
-    
-    ### ... or std_frame lower than 0.85 x 50-percentile
-    istrue=df_drop.std_frame<(0.8*perc(df_drop.std_frame,50))
-    df_drop.drop(df_drop.loc[istrue].index,inplace=True)
-    
-    ### Boolean: mono_tau higher than 2 x 50-percentile
-    ### ..............or lower than 0.5 x 50-percentile
-    istrue=df_drop.mono_tau>(2*perc(df_drop.mono_tau,50))
-    istrue=istrue | (df_drop.mono_tau<(0.5*perc(df_drop.mono_tau,50)))
-    df_drop.drop(df_drop.loc[istrue].index,inplace=True)
-    
-    ### Boolean: mono_A higher than 4 x 50-percentile
-    istrue=df_drop.mono_A>(4*perc(df_drop.mono_A,50))
-    df_drop.drop(df_drop.loc[istrue].index,inplace=True)
-  
-    return df_drop
+    print('Please first start a DASK LocalCluster by running following command in directly in IPython shell:')
+    print()
+    print('Client(n_workers=max(1,int(0.8 * mp.cpu_count())),')
+    print('       processes=True,')
+    print('       threads_per_worker=1,')
+    print('       scheduler_port=8787,')
+    print('       dashboard_address=":1234")') 
+    return
 
 
+#%%
+def main(locs,info,path,conc,**params):
+    '''
+    Get immobile properties for each group in _picked.hdf5 file (see `picasso.addon`_) and filter.
+    
+    
+    Args:
+        locs(pandas.DataFrame):    Grouped localization list, i.e. _picked.hdf5 as in `picasso.addon`_
+        info(list):                Info _picked.yaml to _picked.hdf5 localizations as list of dictionaries.
+        path(str):                 Path to _picked.hdf5 file.
+        conc(float):               Imager concentration
+        
+    Keyword Args:
+        ignore(int=1):             Maximum interruption (frames) allowed to be regarded as one bright time.
+        parallel(bool=False):      Apply parallel computing using DASK? Local cluster should be started before according to cluster_setup_howto()
+    
+    Returns:
+        list:
+            
+        - [0](dict):             Dict of keyword arguments passed to function.
+        - [1](pandas.DataFrame): Immobile properties of each group in ``locs`` as calulated by apply_props()
+    '''
+    
+    ### Path of file that is processed and number of frames
+    path=os.path.splitext(path)[0]
+    NoFrames=info[0]['Frames']
+    
+    ### Define standard 
+    standard_params={'ignore': 3,
+                     'parallel': False,
+                     }
+    ### Set standard if not contained in params
+    for key, value in standard_params.items():
+        try:
+            params[key]
+            if params[key]==None: params[key]=standard_params[key]
+        except:
+            params[key]=standard_params[key]
+    
+    ### Remove keys in params that are not needed
+    delete_key=[]
+    for key, value in params.items():
+        if key not in standard_params.keys():
+            delete_key.extend([key])
+    for key in delete_key:
+        del params[key]
+        
+    ### Procsessing marks: extension&generatedby
+    params['generatedby']='lbfcs.pickprops.main()'
+    
+    ##################################### Calculate kinetic properties
+    print('Calculating kinetic information ...')
+    if params['parallel']==True:
+        print('... in parallel')
+        locs_props=apply_props_dask(locs,
+                                    conc,
+                                    NoFrames,
+                                    params['ignore'],
+                                    mode='ralf',
+                                    )
+    else:
+        locs_props=apply_props(locs,
+                               conc,
+                               NoFrames,
+                               params['ignore'],
+                               mode='ralf',
+                               )
+    
+    locs_props['conc']=conc
+    locs_props['M']=NoFrames
+
+    ##################################### Saving
+    print('Saving _props ...')
+    locs_props.reset_index(inplace=True) # Write group index into separate column
+    info_props=info.copy()+[params]
+    addon_io.save_locs(path+'_props.hdf5',
+                       locs_props,
+                       info_props,
+                       mode='picasso_compatible')
+           
+    return [params,locs_props]
 
 
 

@@ -48,5 +48,5 @@ legend.edgecolor: None
 
 #### Figure saving
 figure.dpi:100
-savefig.dpi:300
+savefig.dpi:200
 savefig.transparent:True

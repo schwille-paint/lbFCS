@@ -3,6 +3,34 @@ import numpy as np
 import pandas as pd
 import importlib
 
+#%%
+def _filter_expID(df):
+    
+    df_out = df.droplevel('expID')             # Remove expID level
+    df_out=df_out[np.isfinite(df_out.tau_lin)] # Remove NaNs
+    df_out = df_out[df_out.ac_zeros<1]         # Remove groups with zero AC values
+    df_out = df_out[df_out.it_lin<10]
+    
+    for i in range(3): # AC time filter
+        tau = np.median(df_out.tau_lin.values)
+        ratio=2
+        istrue = (df_out.tau_lin > ((1/ratio)*tau)) & (df_out.tau_lin < (ratio*tau))
+        df_out = df_out[istrue]
+    
+    for i in range(3): # AC amplitude filter
+        A = np.median(df_out.A_lin.values)
+        ratio=2
+        istrue = (df_out.A_lin > ((1/ratio)*A)) & (df_out.A_lin < (ratio*A))
+        df_out = df_out[istrue]
+    
+    return df_out
+
+#%%       
+def _filter(df):
+
+    df_out=df.groupby('expID').apply(_filter_expID)
+    
+    return df_out
 
 #%%
 def _stats(df,CycleTime):
@@ -18,23 +46,27 @@ def _stats(df,CycleTime):
         
     """
     #### List of observables
-    out_vars=['expID','mono_tau','mono_tau_lin','mono_A','mono_A_lin','tau_b','tau_d','mono_taub','mono_taud','n_events','n_locs']
+    out_vars=['expID','tau','tau_lin','A','A_lin','B','photons','tau_b','tau_d','n_events','n_locs']
     #### List of statistical quantities
     out_stats=['25%','50%','75%','mean','std']
     #### List of observables that will be multiplied with CycleTime to convert from frame to seconds
-    out_converts=['mono_tau','mono_tau_lin','mono_taub','mono_taud','tau_b','tau_d']
+    out_converts=['tau','tau_lin','tau_b','tau_d']
     
     #### Get statistics defined in out_stats in all variables defined in out_vars
     df_stats=df.groupby('expID').describe()
     df_stats=df_stats.loc[:,(out_vars,out_stats)]
+    
     #### Apply unit conversion from frame to [s] to all tau values
     df_stats.loc[:,(out_converts,slice(None))]=df_stats.loc[:,(out_converts,slice(None))]*CycleTime
+    
     #### Get deviation from percentiles to median
     df_stats.loc[:,(slice(None),'25%')]=df_stats.loc[:,(slice(None),'50%')].values-df_stats.loc[:,(slice(None),'25%')].values
     df_stats.loc[:,(slice(None),'75%')]=df_stats.loc[:,(slice(None),'75%')].values-df_stats.loc[:,(slice(None),'50%')].values
     df_stats.loc[:,(slice(None),'std')]=df_stats.loc[:,(slice(None),'std')].values/2
+    
     ##### Add number of groups used for generation of stats
     df_stats.loc[:,'groups']=df.groupby('expID').size()
+    
     ##### Add imager concentration
     df_stats.loc[:,'c']=df.groupby('expID').apply(lambda df: df.conc.mean()).values
     df_stats.rename(columns={'c':'conc'},inplace=True)
@@ -51,8 +83,8 @@ def _fit(df,df_stats):
     #### Get ariables for start paramter estimates
     minc=df_stats.conc.min()
     maxc=df_stats.conc.max()
-    tau_minc=df_stats.loc[df_stats.conc==minc,('mono_tau','mean')].mean()
-    tau_maxc=df_stats.loc[df_stats.conc==maxc,('mono_tau','mean')].mean()
+    tau_minc=df_stats.loc[df_stats.conc==minc,('tau_lin','mean')].mean()
+    tau_maxc=df_stats.loc[df_stats.conc==maxc,('tau_lin','mean')].mean()
     minc=minc*1e-9 # Convert: [nM]->[M]
     maxc=maxc*1e-9 # Convert: [nM]->[M]
     
@@ -63,7 +95,7 @@ def _fit(df,df_stats):
     p0=[koff,kon]
     popt_lbfcs,pcov_lbfcs=curve_fit(varfuncs.tau_of_c,
                              df_stats.conc*1e-9,
-                             df_stats.loc[:,('mono_tau','mean')],
+                             df_stats.loc[:,('tau_lin','mean')],
                              p0=p0,
                              sigma=None,
                              absolute_sigma=False)
@@ -71,7 +103,7 @@ def _fit(df,df_stats):
     p0=[kon/koff,1e-3]
     popt_lbfcsA,pcov_lbfcsA=curve_fit(varfuncs.Ainv_of_c,
                           df_stats.conc*1e-9,
-                          1/df_stats.loc[:,('mono_A','50%')],
+                          1/df_stats.loc[:,('A_lin','50%')],
                           p0=p0,
                           sigma=None,
                           absolute_sigma=True)
@@ -100,7 +132,7 @@ def _fit(df,df_stats):
     #### Assign number of docking sites to df_stats
     for expID in df_stats.index:
         c=df_stats.loc[expID,('conc','')]*1e-9 # Concentration [M]
-        df.loc[expID,'N']=(koff/(kon*c))*(1./df.loc[expID,'mono_A'].values)
+        df.loc[expID,'N']=(koff/(kon*c))*(1./df.loc[expID,'A'].values)
         df_stats.loc[expID,('N','50%')]=df.loc[expID,'N'].median()
         df_stats.loc[expID,('N','25%')]=np.percentile(df.loc[expID,'N'],25)
         df_stats.loc[expID,('N','75%')]=np.percentile(df.loc[expID,'N'],75)
@@ -118,11 +150,11 @@ def _plot(df_stats,df_fit):
     
     ################################################ mono_tau vs concentration
     ax1=f.add_subplot(311)
-    ax1=_mono_tau_onax(ax1,df_stats,df_fit)
+    ax1=_tau_onax(ax1,df_stats,df_fit)
     
     ################################################ 1/mono_A vs concentration
     ax2=f.add_subplot(312)
-    ax2=_mono_A_onax(ax2,df_stats,df_fit)
+    ax2=_A_onax(ax2,df_stats,df_fit)
       
     ###############################################################  1/fit_taud vs conc
     ax3=f.add_subplot(313)
@@ -131,10 +163,10 @@ def _plot(df_stats,df_fit):
     return [ax1,ax2,ax3]
     
 #%%
-def _prep_mono_tau(df_stats,df_fit):
+def _prep_tau(df_stats,df_fit):
     import lbfcs.varfuncs as varfuncs
     
-    field='mono_tau'
+    field='tau_lin'
     
     x=df_stats.conc
     y=df_stats.loc[:,(field,'mean')]
@@ -147,17 +179,15 @@ def _prep_mono_tau(df_stats,df_fit):
     return x,y,yerr,xfit,yfit
     
 #%% 
-def _mono_tau_onax(ax,df_stats,df_fit,color='red',label_data='data',label_fit='fit'):
-    import lbfcs.pyplot_wrap as plt_wrap
+def _tau_onax(ax,df_stats,df_fit,color='red',label_data='data',label_fit='fit'):
     
     #### Get data to plot
-    x,y,yerr,xfit,yfit=_prep_mono_tau(df_stats,df_fit)
+    x,y,yerr,xfit,yfit=_prep_tau(df_stats,df_fit)
     
     #### Plot data
     ax.errorbar(x,y,yerr=yerr,fmt='o',label=label_data,c=color)
     ax.plot(xfit,yfit,'-',label=label_fit,c=color,lw=2)
     
-    plt_wrap.ax_styler(ax)
     ax.set_xlim(0,max(x)+0.2*max(x))
     ax.set_ylim(min(y)-0.3*min(y),max(y)+0.3*max(y))
     ax.set_xlabel('Concentration (nM)')
@@ -167,10 +197,10 @@ def _mono_tau_onax(ax,df_stats,df_fit,color='red',label_data='data',label_fit='f
     return ax
        
 #%%
-def _prep_mono_A(df_stats,df_fit):
+def _prep_A(df_stats,df_fit):
     import lbfcs.varfuncs as varfuncs
     
-    field='mono_A'
+    field='A_lin'
     
     x=df_stats.conc
     y=1/df_stats.loc[:,(field,'50%')]
@@ -184,17 +214,15 @@ def _prep_mono_A(df_stats,df_fit):
     return x,y,yerr,xfit,yfit
  
 #%%
-def _mono_A_onax(ax,df_stats,df_fit,color='red',label_data='data',label_fit='fit'):
-    import lbfcs.pyplot_wrap as plt_wrap
+def _A_onax(ax,df_stats,df_fit,color='red',label_data='data',label_fit='fit'):
     
     #### Get data to plot
-    x,y,yerr,xfit,yfit=_prep_mono_A(df_stats,df_fit)
+    x,y,yerr,xfit,yfit=_prep_A(df_stats,df_fit)
     
     #### Plot data
     ax.errorbar(x,y,yerr=yerr,fmt='o',label=label_data,c=color)
     ax.plot(xfit,yfit,'-',label=label_fit,c=color,lw=2)
     
-    plt_wrap.ax_styler(ax)
     ax.set_xlim(0,max(x)+0.2*max(x))
     ax.set_ylim(0,max(y)+0.3*max(y))
     ax.set_xlabel('Concentration (nM)')
@@ -222,7 +250,6 @@ def _prep_tau_d(df_stats,df_fit):
  
 #%%
 def _tau_d_onax(ax,df_stats,df_fit,color='red',label_data='data',label_fit='fit'):
-    import lbfcs.pyplot_wrap as plt_wrap
     
     #### Get data to plot
     x,y,yerr,xfit,yfit=_prep_tau_d(df_stats,df_fit)
@@ -231,7 +258,6 @@ def _tau_d_onax(ax,df_stats,df_fit,color='red',label_data='data',label_fit='fit'
     ax.errorbar(x,y,yerr=yerr,fmt='o',label=label_data,c=color)
     ax.plot(xfit,yfit,'-',label=label_fit,c=color,lw=2)
     
-    plt_wrap.ax_styler(ax)
     ax.set_xlim(0,max(x)+0.2*max(x))
     ax.set_ylim(0,max(y)+0.3*max(y))
     ax.set_xlabel('Concentration (nM)')
