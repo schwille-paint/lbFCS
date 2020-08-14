@@ -36,22 +36,36 @@ def trace_and_ac(df,NoFrames):
     '''
     
     ############################# Prepare trace
-    df['photons']=df['photons'].abs() # Sometimes nagative values??
-    df_sum=df[['frame','photons']].groupby('frame').sum() # Sum multiple localizations in single frame
+    df['photons'] = df['photons'].abs() # Sometimes nagative values??
+    df_sum = df[['frame','photons']].groupby('frame').sum() # Sum multiple localizations in single frame
 
-    trace=np.zeros(NoFrames)
-    trace[df_sum.index.values]=df_sum['photons'].values # Add (summed) photons to trace for each frame
+    trace = np.zeros(NoFrames)
+    trace[df_sum.index.values] = df_sum['photons'].values # Add (summed) photons to trace for each frame
     
     ############################# Autocorrelate trace
-    ac=multitau.autocorrelate(trace,
-                              m=32,
-                              deltat=1,
-                              normalize=True,
-                              copy=False,
-                              dtype=np.float64(),
-                              )
+    ac = multitau.autocorrelate(trace,
+                                m=32,
+                                deltat=1,
+                                normalize=True,
+                                copy=False,
+                                dtype=np.float64(),
+                                )
     
-    return [trace,ac]
+    ############################# Test: Invert trace
+    trace_invert = trace.copy()
+    trace_invert[trace==0] = 1
+    trace_invert[trace>0] = 0
+    
+    ############################# Test: Compute autocorrelation of inverted trace
+    ac_invert = multitau.autocorrelate(trace_invert,
+                                       m=32,
+                                       deltat=1,
+                                       normalize=True,
+                                       copy=False,
+                                       dtype=np.float64(),
+                                       )
+    
+    return [trace,ac,trace_invert,ac_invert]
     
 #%%
 def fit_ac(ac,max_it=10):
@@ -110,7 +124,7 @@ def fit_ac(ac,max_it=10):
                 delta=np.nan
                 break
         
-        return popt[0],popt[1],ac[l_max_return,0],i+1,delta
+        return popt[0],popt[1],popts[0,0],popts[0,1],ac[l_max_return,0],i+1,delta
 
 #%%
 def fit_ac_lin(ac,max_it=10):
@@ -168,7 +182,7 @@ def fit_ac_lin(ac,max_it=10):
                 delta=np.nan
                 break
         
-        return popt[0],popt[1],ac[l_max_return,0],i+1,delta
+        return popt[0],popt[1],popts[0,0],popts[0,1],ac[l_max_return,0],i+1,delta
 
 #%%
 def props_fcs(df,NoFrames,max_it=10):
@@ -194,21 +208,32 @@ def props_fcs(df,NoFrames,max_it=10):
     """
     
     ############################# Get trace and ac
-    trace,ac=trace_and_ac(df,NoFrames)
-    ac_zeros=np.sum(ac[1:,1]<0.1) # Number of lagtimes with almost zero ac values, can be used for filtering
+    trace,ac,trace_invert,ac_invert = trace_and_ac(df,NoFrames)
+    ac_zeros = np.sum(ac[1:,1]<0.1) # Number of lagtimes with almost zero ac values, can be used for filtering
     
     ############################# Get autocorrelation fit results
-    A,tau,lmax,it,delta                     = fit_ac(ac,1)
-    A_lin,tau_lin,lmax_lin,it_lin,delta_lin = fit_ac_lin(ac,max_it)
+    A,tau,A_one,tau_one,lmax,it,delta                             = fit_ac(ac,max_it)
+    A_lin,tau_lin,A_lin_one,tau_lin_one,lmax_lin,it_lin,delta_lin = fit_ac_lin(ac,max_it)
 
     ############################# Calculate brightness value B using trace
-    B=np.var(trace)/np.mean(trace)
-
+    B = np.var(trace)/np.mean(trace)
+    
+    ############################# Get inverted autocorrelation fit results
+    A_inv,tau_inv,A_inv_one,tau_inv_one,lmax,it_inv,delta_inv                                 = fit_ac(ac_invert,max_it)
+    A_inv_lin,tau_inv_lin,A_inv_lin_one,tau_inv_lin_one,lmax_inv_lin,it_inv_lin,delta_inv_lin = fit_ac_lin(ac_invert,max_it)
+    
     ############################# Assignment to series 
     s_out=pd.Series({'ac_zeros':ac_zeros,                                                                      # Number of almost zeros entries in AC
-                     'A':A,'tau':tau,'lmax':lmax,'it':it,'delta':delta,                                        # AC fit results
-                     'A_lin':A_lin,'tau_lin':tau_lin,'lmax_lin':lmax_lin,'it_lin':it_lin,'delta_lin':delta_lin,# AC linearized iterative fit results
+                     'A':A,'tau':tau,'lmax':lmax,'it':it,'delta':delta,                                        # AC fit iterative 
+                     'A_one':A_one,'tau_one':tau_one,                                                          # AC fit 1st iteration
+                     'A_lin':A_lin,'tau_lin':tau_lin,'lmax_lin':lmax_lin,'it_lin':it_lin,'delta_lin':delta_lin,# AC linear fit
+                     'A_lin_one':A_lin_one,'tau_lin_one':tau_lin_one,                                          # AC linear fit 1st iteration
                      'B':B,                                                                                    # Brightness
+                     'A_inv':A_inv,'tau_inv':tau,'lmax_inv':lmax,'it_inv':it,'delta_inv':delta_inv,            # Inverted AC fit iterative 
+                     'A_inv_one':A_inv_one,'tau_inv_one':tau_inv_one,                                          # Inverted AC fit 1st iteration
+                     'A_inv_lin':A_inv_lin,'tau_inv_lin':tau_inv_lin,                                          # Inverted AC linear fit
+                     'lmax_inv_lin':lmax_inv_lin,'it_inv_lin':it_inv_lin,'delta_inv_lin':delta_inv_lin,        #
+                     'A_inv_lin_one':A_inv_lin_one,'tau_inv_lin_one':tau_inv_lin_one,                          # Inverted AC linear fit 1st iteration
                      }) 
     
     return s_out

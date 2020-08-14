@@ -20,17 +20,16 @@ outliers=[]
 
 #### Saving
 save_results=False
-savedir='/fs/pool/pool-schwille-paint/Analysis/p04.lb-FCS/zz.Pm2-8nt/z.c-series/z.datalog'
+savedir=''
 savename=os.path.splitext(os.path.basename(sys.argv[0]))[0]
 
 ############################################################## Define data
 dir_names=[]
-dir_names.extend([r'C:\Data\p04.lb-FCS\19-05-03_SDS_T23\id64_5nM_p35uW_T23_1'])
-dir_names.extend([r'C:\Data\p04.lb-FCS\19-05-03_SDS_T23\id64_10nM_p35uW_T23_1'])
-dir_names.extend([r'C:\Data\p04.lb-FCS\19-05-03_SDS_T23\id64_20nM_p35uW_T23_1'])
+dir_names.extend([r'C:\Data\p04.lb-FCS\20-07-15_Tutorial']*3)
 
 file_names=[]
-file_names.extend(['id64_5nM_p35uW_T23_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
+# file_names.extend(['id64_5nM_p35uW_T23_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
+file_names.extend(['id64_5nM_p35uW_T23_1_MMStack_Pos0.ome_locs_render_picked_f0-9000_props.hdf5'])
 file_names.extend(['id64_10nM_p35uW_T23_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
 file_names.extend(['id64_20nM_p35uW_T23_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
 
@@ -68,13 +67,13 @@ print('    N  = %.2f'%(X.N.median()))
 print('qPAINT')
 print('    kon  = %.2e'%(X_fit.loc['qpaint','popt0']))
 
-#### Plot certain distributions
-field='tau_lin'
-subset=2  # Certain measurement
-# subset=X.conc>1 # Boolean subset, e.g. imager concentration > 10nM
+#### Plot certain distribtions
+field='N'
+subset=0 # Certain measurement
+subset=X.conc>1 # Boolean subset, e.g. imager concentration > 10nM
 
 bins='fd'
-bins=np.linspace(0,40,50)
+bins=np.linspace(0,3,50)
 
 f=plt.figure(12,figsize=[4,3])
 f.subplots_adjust(bottom=0.2,top=0.95,left=0.2,right=0.95)

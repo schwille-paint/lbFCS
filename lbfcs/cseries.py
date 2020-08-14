@@ -4,12 +4,17 @@ import pandas as pd
 import importlib
 
 #%%
-def _filter_expID(df):
+def _filter(df):
+    df_out=df.copy()
     
-    df_out = df.droplevel('expID')             # Remove expID level
-    df_out=df_out[np.isfinite(df_out.tau_lin)] # Remove NaNs
+    if 'expID' in df.columns.values: df_out = df.droplevel('expID') # Remove expID level
+    
+    df_out=df_out[np.isfinite(df_out.tau_lin)]   # Remove NaNs
     df_out = df_out[df_out.ac_zeros<1]         # Remove groups with zero AC values
-    df_out = df_out[df_out.it_lin<10]
+    df_out = df_out[df_out.it_lin<10]          # Remove groups that did not converge
+    
+    # Old filter criterium
+    df_out = df_out[(np.abs(df_out.tau_one-df_out.tau_lin_one)/df_out.tau_lin_one)<0.2]
     
     for i in range(3): # AC time filter
         tau = np.median(df_out.tau_lin.values)
@@ -20,15 +25,8 @@ def _filter_expID(df):
     for i in range(3): # AC amplitude filter
         A = np.median(df_out.A_lin.values)
         ratio=2
-        istrue = (df_out.A_lin > ((1/ratio)*A)) & (df_out.A_lin < (ratio*A))
+        istrue = df_out.A_lin < (ratio*A)
         df_out = df_out[istrue]
-    
-    return df_out
-
-#%%       
-def _filter(df):
-
-    df_out=df.groupby('expID').apply(_filter_expID)
     
     return df_out
 

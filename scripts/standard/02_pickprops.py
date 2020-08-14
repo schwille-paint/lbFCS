@@ -14,27 +14,31 @@ import lbfcs.pickprops as props
 importlib.reload(props)
 
 ############################################################# Set concentrations
-conc=[5,10,20] # Imager concentration [nM]
+# conc=[5,10,20] # Imager concentration [nM]
 
 ############################################# Load raw data
-dir_names=[]
-dir_names.extend([r'C:\Data\p04.lb-FCS\19-05-03_SDS_T23\id64_5nM_p35uW_T23_1'])
-dir_names.extend([r'C:\Data\p04.lb-FCS\19-05-03_SDS_T23\id64_10nM_p35uW_T23_1'])
-dir_names.extend([r'C:\Data\p04.lb-FCS\19-05-03_SDS_T23\id64_20nM_p35uW_T23_1'])
+# dir_names=[]
+# dir_names.extend([r'C:\Data\p04.lb-FCS\20-07-15_Tutorial']*3)
 
-file_names=[]
-file_names.extend(['id64_5nM_p35uW_T23_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
-file_names.extend(['id64_10nM_p35uW_T23_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
-file_names.extend(['id64_20nM_p35uW_T23_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
+# file_names=[]
+# file_names.extend(['id64_5nM_p35uW_T23_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
+# file_names.extend(['id64_10nM_p35uW_T23_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
+# file_names.extend(['id64_20nM_p35uW_T23_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
 
-# dir_name=r'C:\Data\p04.lb-FCS\20-06-22_Simulation\scan_run01\N12'
-# paths=glob.glob(os.path.join(dir_name+r'\*.hdf5'))
-# paths=[path for path in paths if not bool(re.search('props',path))]
-# conc=[int(os.path.split(p)[-1].split('_')[-1][1:3])*1e-9 for p in paths]
+dir_name=r'C:\Data\p04.lb-FCS\20-06-22_Simulation\scan_run04'
+paths=glob.glob(os.path.join(dir_name+r'\*.hdf5'))
+
+paths=[path for path in paths if not bool(re.search('props',path))]
+paths=[path for path in paths if bool(re.search('koff52',path))]
+paths=[path for path in paths if bool(re.search('konc013',path))]
+paths=[path for path in paths if bool(re.search('N20',path))]
+
+conc=[1e-9]*len(paths)
 
 ############################################ Set non standard parameters 
 ### Valid for all evaluations
-params_all={}
+params_all={'ignore':0,
+            }
 
 ## Exceptions
 params_special={}
@@ -48,9 +52,9 @@ params_special={}
     
 #%%                   
 failed_path=[]
-for i in range(0,len(file_names)):
+for i in range(0,len(paths)):
     ### Create path
-    path=os.path.join(dir_names[i],file_names[i])
+    # path=os.path.join(dir_names[i],file_names[i])
     
     ### Set paramters for each run
     params=params_all.copy()
@@ -59,8 +63,8 @@ for i in range(0,len(file_names)):
     
     ### Run main function
     try:
-        locs,info=addon_io.load_locs(path)   
-        out=props.main(locs,info,path,conc[i],**params)
+        locs,info=addon_io.load_locs(paths[i])   
+        out=props.main(locs,info,paths[i],conc[i],**params)
     except Exception:
         traceback.print_exc()
         failed_path.extend([paths[i]])
