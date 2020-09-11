@@ -20,7 +20,7 @@ importlib.reload(varfuncs)
 importlib.reload(multitau)
 
 #%%
-def trace_and_ac(df,NoFrames):
+def trace_and_ac(df,NoFrames,field = 'photons'):
     '''
     Get fluorescence trace for single pick and normalized multitau autocorrelation function (AC) employing multitau.autocorrelate().
 
@@ -36,11 +36,11 @@ def trace_and_ac(df,NoFrames):
     '''
     
     ############################# Prepare trace
-    df['photons'] = df['photons'].abs() # Sometimes nagative values??
-    df_sum = df[['frame','photons']].groupby('frame').sum() # Sum multiple localizations in single frame
+    df[field] = df[field].abs() # Sometimes nagative values??
+    df_sum = df[['frame',field]].groupby('frame').sum() # Sum multiple localizations in single frame
 
     trace = np.zeros(NoFrames)
-    trace[df_sum.index.values] = df_sum['photons'].values # Add (summed) photons to trace for each frame
+    trace[df_sum.index.values] = df_sum[field].values # Add (summed) photons to trace for each frame
     
     ############################# Autocorrelate trace
     ac = multitau.autocorrelate(trace,
@@ -51,22 +51,8 @@ def trace_and_ac(df,NoFrames):
                                 dtype=np.float64(),
                                 )
     
-    ############################# Test: Invert trace
-    trace_invert = trace.copy()
-    trace_invert[trace==0] = 1
-    trace_invert[trace>0] = 0
-    
-    ############################# Test: Compute autocorrelation of inverted trace
-    ac_invert = multitau.autocorrelate(trace_invert,
-                                       m=32,
-                                       deltat=1,
-                                       normalize=True,
-                                       copy=False,
-                                       dtype=np.float64(),
-                                       )
-    
-    return [trace,ac,trace_invert,ac_invert]
-    
+    return [trace,ac]
+
 #%%
 def fit_ac(ac,max_it=10):
     ''' 
@@ -87,7 +73,7 @@ def fit_ac(ac,max_it=10):
     popt[1]/=(l_max-1)
     popt[1]=1/popt[1]
     
-    l_max=-15                                                       # Maximum lagtime used for first fit
+    l_max=8*8                                                       # Maximum lagtime used for first fit
     
     ###################################################### Fit boundaries
     lowbounds=np.array([0,0])
@@ -185,7 +171,7 @@ def fit_ac_lin(ac,max_it=10):
         return popt[0],popt[1],popts[0,0],popts[0,1],ac[l_max_return,0],i+1,delta
 
 #%%
-def props_fcs(df,NoFrames,max_it=10):
+def props_fcs(df,NoFrames,max_it=1):
     """ 
     Apply least square fit to normalized autocorrelation function (AC) using ``AC(l) = A*exp(-l/tau) + 1`` by two methods:
         
@@ -208,32 +194,26 @@ def props_fcs(df,NoFrames,max_it=10):
     """
     
     ############################# Get trace and ac
-    trace,ac,trace_invert,ac_invert = trace_and_ac(df,NoFrames)
+    trace,ac       = trace_and_ac(df,NoFrames)
+    trace_ck,ac_ck = trace_and_ac(df,NoFrames,field = 'photons_ck') # Trace with applied Chung-Kennedy Filter
     ac_zeros = np.sum(ac[1:,1]<0.1) # Number of lagtimes with almost zero ac values, can be used for filtering
     
     ############################# Get autocorrelation fit results
-    A,tau,A_one,tau_one,lmax,it,delta                             = fit_ac(ac,max_it)
-    A_lin,tau_lin,A_lin_one,tau_lin_one,lmax_lin,it_lin,delta_lin = fit_ac_lin(ac,max_it)
-
+    A,tau         = fit_ac(ac,max_it)[:2]
+    A_lin,tau_lin = fit_ac_lin(ac,max_it)[:2]
+    A_lin_ck,tau_lin_ck = fit_ac_lin(ac_ck,max_it)[:2] # Fit of autocorrelation with applied Chung-Kennedy Filter
+    
     ############################# Calculate brightness value B using trace
     B = np.var(trace)/np.mean(trace)
-    
-    ############################# Get inverted autocorrelation fit results
-    A_inv,tau_inv,A_inv_one,tau_inv_one,lmax,it_inv,delta_inv                                 = fit_ac(ac_invert,max_it)
-    A_inv_lin,tau_inv_lin,A_inv_lin_one,tau_inv_lin_one,lmax_inv_lin,it_inv_lin,delta_inv_lin = fit_ac_lin(ac_invert,max_it)
+    B_ck = np.var(trace_ck)/np.mean(trace_ck) # Brightness of Chung-Kennedy filtered trace
     
     ############################# Assignment to series 
-    s_out=pd.Series({'ac_zeros':ac_zeros,                                                                      # Number of almost zeros entries in AC
-                     'A':A,'tau':tau,'lmax':lmax,'it':it,'delta':delta,                                        # AC fit iterative 
-                     'A_one':A_one,'tau_one':tau_one,                                                          # AC fit 1st iteration
-                     'A_lin':A_lin,'tau_lin':tau_lin,'lmax_lin':lmax_lin,'it_lin':it_lin,'delta_lin':delta_lin,# AC linear fit
-                     'A_lin_one':A_lin_one,'tau_lin_one':tau_lin_one,                                          # AC linear fit 1st iteration
-                     'B':B,                                                                                    # Brightness
-                     'A_inv':A_inv,'tau_inv':tau,'lmax_inv':lmax,'it_inv':it,'delta_inv':delta_inv,            # Inverted AC fit iterative 
-                     'A_inv_one':A_inv_one,'tau_inv_one':tau_inv_one,                                          # Inverted AC fit 1st iteration
-                     'A_inv_lin':A_inv_lin,'tau_inv_lin':tau_inv_lin,                                          # Inverted AC linear fit
-                     'lmax_inv_lin':lmax_inv_lin,'it_inv_lin':it_inv_lin,'delta_inv_lin':delta_inv_lin,        #
-                     'A_inv_lin_one':A_inv_lin_one,'tau_inv_lin_one':tau_inv_lin_one,                          # Inverted AC linear fit 1st iteration
+    s_out=pd.Series({'ac_zeros':ac_zeros,                          # Number of almost zeros entries in AC
+                     'A':A,'tau':tau,                              # AC fit 
+                     'A_lin':A_lin,'tau_lin':tau_lin,              # AC linear fit
+                     'A_lin_ck':A_lin_ck,'tau_lin_ck':tau_lin_ck,  # Chung-Kennedy-AC linear fit
+                     'B':B,                                        # Brightness
+                     'B_ck':B_ck,                                  # Brightness
                      }) 
     
     return s_out
@@ -259,7 +239,7 @@ def darkbright_times(df,ignore):
     
     ############################# Dark time distribution
     dframes=frames[1:]-frames[0:-1] # Get frame distances i.e. dark times
-    dframes=dframes.astype(float) # Convert to float values for later multiplications
+    dframes=dframes.astype(float)   # Convert to float values for later multiplications
     
     tau_d_dist=dframes-1 # 1) We have to substract -1 to get real dark frames, e.g. suppose it was bright at frame=2 and frame=4
                          #    4-2=2 but there was actually only one dark frame.
@@ -267,24 +247,24 @@ def darkbright_times(df,ignore):
                          # 2) Be aware that counting of gaps starts with first bright localization and ends with last
                          #    since values before or after are anyway artificially shortened, i.e. one bright event means no dark time!
     
-    tau_d_dist=tau_d_dist[tau_d_dist>(ignore)] # Remove all dark times>ignore
-    tau_d_dist=np.sort(tau_d_dist) # Sorted tau_d distribution
+    tau_d_dist=tau_d_dist[tau_d_dist>(ignore)] # Remove all dark times <= ignore
+    tau_d_dist=np.sort(tau_d_dist)             # Sorted tau_d distribution
  
     ############################# Bright time distribution
-    dframes[dframes<=(ignore+1)]=0 # Set (bright) frames to 0 that have nnext neighbor distance <= ignore+1
-    dframes[dframes>1]=1 # Set dark frames to 1
-    dframes[dframes<1]=np.nan # Set bright frames to NaN
+    dframes[dframes<=(ignore+1)]=0 # Set (bright) frames to 0, i.e.those that have next neighbor distance <= ignore+1
+    dframes[dframes>1]=1           # Set dark frames to 1
+    dframes[dframes<1]=np.nan      # Set bright frames to NaN
     
-    mask_end=np.concatenate([dframes,[1]],axis=0) # Mask for end of events, add 1 at end
-    frames_end=frames*mask_end # Apply mask to frames to get end frames of events
-    frames_end=frames_end[~np.isnan(frames_end)] # get only non-NaN values, removal of bright frames
+    mask_end=np.concatenate([dframes,[1]],axis=0)      # Mask for end of events, add 1 at end
+    frames_end=frames*mask_end                         # Apply mask to frames to get end frames of events
+    frames_end=frames_end[~np.isnan(frames_end)]       # get only non-NaN values, removal of bright frames
     
-    mask_start=np.concatenate([[1],dframes],axis=0) # Mask for start of events, add one at start
-    frames_start=frames*mask_start # Apply mask to frames to get start frames events
+    mask_start=np.concatenate([[1],dframes],axis=0)    # Mask for start of events, add one at start
+    frames_start=frames*mask_start                     # Apply mask to frames to get start frames events
     frames_start=frames_start[~np.isnan(frames_start)] # get only non-NaN values, removal of bright frames
     
     tau_b_dist=frames_end-frames_start+1 # get tau_b distribution
-    tau_b_dist=np.sort(tau_b_dist) # sort tau_b distribution
+    tau_b_dist=np.sort(tau_b_dist)       # sort tau_b distribution
     
     ############################# Number of events
     n_events=float(np.size(tau_b_dist))
@@ -356,17 +336,20 @@ def props_qpaint(df,ignore,mode='ralf'):
     '''
     
     ################ Get bright and dark time distributions
-    tau_d_dist,tau_b_dist,n_events = darkbright_times(df,ignore=1)
+    tau_d_dist,tau_b_dist,n_events = darkbright_times(df,ignore)
     
     ################ Extract average bright and dark times
     tau_b,tau_b_off,tau_b_a,tau_b_ulen = fit_times(tau_b_dist,mode)  # Bright time
     tau_d,tau_d_off,tau_d_a,tau_d_ulen = fit_times(tau_d_dist,mode)  # Dark time
 
     ###################################################### Assignment to series 
-    s_out=pd.Series({'tau_b':tau_b,'tau_b_off':tau_b_off,'tau_b_a':tau_b_a,'tau_b_mean':np.mean(tau_b_dist), # Bright times
-                     'tau_d':tau_d,'tau_d_off':tau_d_off,'tau_d_a':tau_d_a,'tau_d_ulen':tau_d_ulen,'tau_d_mean':np.mean(tau_d_dist), # Dark times
-                     'n_events':n_events}) # Events
-    return s_out  
+    s_out=pd.Series({'tau_b':tau_b,'tau_b_off':tau_b_off,'tau_b_a':tau_b_a, # Bright times
+                     'tau_d':tau_d,'tau_d_off':tau_d_off,'tau_d_a':tau_d_a, # Dark times
+                     'n_events':n_events,                                   # Events
+                     'ignore':ignore,                                       # Used ignore value 
+                     }) 
+    return s_out
+
 #%%
 def props_other(df,NoFrames):
     '''
@@ -401,8 +384,7 @@ def get_props(df,NoFrames,ignore,mode='ralf'):
         - props_qpaint(df,ignore,mode)
         - props_other(df)
     
-    '''
-    
+    ''' 
     ### Call individual functions   
     s_fcs=props_fcs(df,NoFrames)
     s_qpaint=props_qpaint(df,ignore,mode)
@@ -410,11 +392,11 @@ def get_props(df,NoFrames,ignore,mode='ralf'):
     
     ### Combine output
     s_out=pd.concat([s_fcs,s_qpaint,s_other])
-    
+            
     return s_out
 
 #%%
-def apply_props(df,conc,NoFrames,ignore,mode='ralf'): 
+def apply_props(df,NoFrames,ignore,mode='ralf'): 
     """
     Applies pick_props.get_props(df,NoFrames,ignore) to each group in non-parallelized manner. Progressbar is shown under calculation.
     """
@@ -425,7 +407,7 @@ def apply_props(df,conc,NoFrames,ignore,mode='ralf'):
     return df_props
 
 #%%
-def apply_props_dask(df,conc,NoFrames,ignore,mode='ralf'): 
+def apply_props_dask(df,NoFrames,ignore,mode='ralf'): 
     """
     Applies pick_props.get_props(df,NoFrames,ignore) to each group in parallelized manner using dask by splitting df into 
     various partitions.
@@ -470,7 +452,7 @@ def cluster_setup_howto():
 
 
 #%%
-def main(locs,info,path,conc,**params):
+def main(locs,info,path,conditions,**params):
     '''
     Get immobile properties for each group in _picked.hdf5 file (see `picasso.addon`_) and filter.
     
@@ -479,7 +461,7 @@ def main(locs,info,path,conc,**params):
         locs(pandas.DataFrame):    Grouped localization list, i.e. _picked.hdf5 as in `picasso.addon`_
         info(list):                Info _picked.yaml to _picked.hdf5 localizations as list of dictionaries.
         path(str):                 Path to _picked.hdf5 file.
-        conc(float):               Imager concentration
+        cond(float):               Experimental condition description
         
     Keyword Args:
         ignore(int=1):             Maximum interruption (frames) allowed to be regarded as one bright time.
@@ -524,29 +506,53 @@ def main(locs,info,path,conc,**params):
     if params['parallel']==True:
         print('... in parallel')
         locs_props=apply_props_dask(locs,
-                                    conc,
                                     NoFrames,
                                     params['ignore'],
                                     mode='ralf',
                                     )
     else:
         locs_props=apply_props(locs,
-                               conc,
                                NoFrames,
                                params['ignore'],
                                mode='ralf',
                                )
     
-    locs_props['conc']=conc
-    locs_props['M']=NoFrames
-
+    ################################### Some final adjustments assigning conditions and downcasting dtypes wherever possible
+    locs_props.reset_index(inplace=True) # Assign group to columns
+    locs_props = locs_props.assign(setting = conditions[0])
+    locs_props = locs_props.assign(vary = conditions[1])
+    locs_props = locs_props.assign(M = NoFrames)
+    
+    locs_props = locs_props.astype(np.float32)
+    locs_props = locs_props.astype({'group':np.uint16,
+                                    'setting':np.uint16,
+                                    'vary':np.uint16,
+                                    'M':np.uint16,
+                                    })
+    
+    locs = locs.assign(setting = conditions[0])
+    locs = locs.assign(vary = conditions[1])
+    locs = locs.assign(M = NoFrames)
+    
+    locs = locs.astype({'frame':np.uint16,
+                        'group':np.uint16,
+                        'setting':np.uint16,
+                        'vary':np.uint16,
+                        'M':np.uint16,
+                        })
+    
     ##################################### Saving
     print('Saving _props ...')
-    locs_props.reset_index(inplace=True) # Write group index into separate column
     info_props=info.copy()+[params]
     addon_io.save_locs(path+'_props.hdf5',
                        locs_props,
                        info_props,
+                       mode='picasso_compatible')
+    
+    print('Saving _picked ...')
+    addon_io.save_locs(path+'.hdf5',
+                       locs,
+                       info,
                        mode='picasso_compatible')
            
     return [params,locs_props]
