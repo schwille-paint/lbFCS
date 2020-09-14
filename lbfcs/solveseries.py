@@ -91,7 +91,7 @@ def occ_func(koff,konc,N,occ_meas):
     occ = occ - occ_meas
     return occ
 
-def taud_func(konc,N,taud_meas): return 1 / (N*konc*1.3) - taud_meas      # !!!!! Factor inserted for experimental data???
+def taud_func(konc,N,taud_meas): return 1 / (N*konc*1) - taud_meas      # !!!!! Factor inserted for experimental data???
 
 def events_func(frames,ignore,koff,konc,N,events_meas):
     p       = ( 1/koff + 1 ) / ( 1/koff + 1/konc )   # Probability of bound imager
@@ -100,13 +100,33 @@ def events_func(frames,ignore,koff,konc,N,events_meas):
     events  = darktot / (taud + ignore+.5)           # Expected number of events
     return events - events_meas
 
+def binom_array(N,k):
+    try:
+        c = np.zeros(len(N))
+        for i,n in enumerate(N):
+            c[i] = binom(n,k)
+    except: c = binom(N,k)
+    
+    return c
+
 def pk_func(k_out,koff,konc,N,pks_meas):
+    
+    ins = [koff,konc,N]
+    try: n = [len(item) for item in ins if isinstance(item,np.ndarray)][0]
+    except: n = 1
+    
     p = (1/koff+1)/(1/koff+1/(konc)) # Probability of bound imager
-    pks = np.zeros(10)
+    
+    pks = np.zeros((n,10))
     for i,k in enumerate(range(1,11)):
-        pks[i] = binom(N,k) * (p)**k *(1-p)**(N-k)   
-    pks /= np.sum(pks) # Normalize   
-    return pks[k_out] - pks_meas.flatten()[k_out]
+        pks[:,i] = binom_array(N,k) * (p)**k *(1-p)**(N-k)
+    
+    # Normalize
+    norm = np.sum(pks,axis=1).reshape(n,1)
+    norm = np.repeat(norm,10,axis=1)
+    pks /= norm 
+    
+    return pks[:,k_out] - pks_meas
 
 #%%
 def create_eqs_koff(x,data):
@@ -121,8 +141,7 @@ def create_eqs_koff(x,data):
     m = np.shape(data)[1]
     
     ### Define weights
-    # w = np.array([2, 1, 3, 0.25, 1, 1]) # Simulation
-    w = np.array([1, 1, 1, 1, 1, 1]) # Experimental data
+    w = np.array([1, 1, 2, 1, 1, 2]) # Experimental data
     
     system = np.array([0])
     for i in range(n):
@@ -139,10 +158,10 @@ def create_eqs_koff(x,data):
             
             if m > 8: 
                 for k in range(0,10):
-                    if data[j,6+k] >= 1e-2:
-                        eq = ( w[5] / 1e-2 ) * pk_func(k,x[i],x[n],x[n+1],data[j,6:-2])
+                    if data[j,6+k] >= 5e-2:
+                        eq = ( w[5] / 2e-2 ) * pk_func(k,x[i],x[n],x[n+1],data[j,6+k])
                     else:
-                        eq = 0
+                        pass
                     system = np.append(system,[eq])
                     
     return system[1:]
@@ -195,7 +214,7 @@ def solve_eqs_koff(data):
 #%%
 def solve_eqs(df):
     '''
-    Combination of ``prep_Tseries()`` and ``solve_eqsTseries()`` to set-up and find solution to T-series using autocorrelation time and amplitude only.
+    Combination of ``prep_data()`` and ``solve_eqs_koff()`` to set-up and find solution.
     '''
     data = prep_data(df)
     s_opt = solve_eqs_koff(data)
@@ -232,25 +251,32 @@ def combine_solutions(df):
     return s_out
 
 #%%
-def expected_observables(df,koff,konc,N,ignore,M):
+def expected_observables(df,koff,konc,N):
     
     cols = df.columns.to_list()
-    cols = [c for c in cols if not bool(re.search('setting|vary|rep|part',c))]
-    cols = [c for c in cols if not bool(re.search('_std',c))]
-    cols = [c for c in cols if not bool(re.search('ignore|M',c))]
+    # cols = [c for c in cols if not bool(re.search('setting|vary|rep|part',c))]
+    # cols = [c for c in cols if not bool(re.search('_std',c))]
+    # cols = [c for c in cols if not bool(re.search('ignore|M',c))]
     
-    s_out = pd.Series(index = cols)
+    df_out = pd.DataFrame(columns = cols)
     
-    s_out['tau']    = tau_func(koff,konc,0)
-    s_out['A']      = A_func(koff,konc,N,0)
-    s_out['occ']    = occ_func(koff,konc,N,0)
-    s_out['taud']   = taud_func(konc,N,0)
-    s_out['events'] = events_func(M,ignore,koff,konc,N,0)
+    df_out['setting'] = df.setting.values
+    df_out['vary']    = df.vary.values
+    df_out['rep']     = df.rep.values
+    
+    df_out['ignore'] = df.ignore.values
+    df_out['M']      = df.M.values
+    
+    df_out['tau']    = tau_func(koff,konc,0)
+    df_out['A']      = A_func(koff,konc,N,0)
+    df_out['occ']    = occ_func(koff,konc,N,0)
+    df_out['taud']   = taud_func(konc,N,0)
+    df_out['events'] = events_func(df.M.values,df.ignore.values,koff,konc,N,0)
     
     for k in range(0,10):
-        s_out['p'+('%i'%(k+1)).zfill(2)] = pk_func(k,koff,konc,N,np.zeros(10))
+        df_out['p'+('%i'%(k+1)).zfill(2)] = pk_func(k,koff,konc,N,np.zeros(10))
         
-    return s_out
+    return df_out
 
 #%%
 def eps_func(B,koff,tau):
@@ -308,7 +334,7 @@ def gauss_comb(x,p):
     y = np.zeros(len(x))
     
     for i,l in enumerate(range(1,11)):
-        y += gauss_func(x,p[i], l*(1+p[-1]), p[-2] * l**0.5)
+        y += gauss_func(x,p[i], l*(1+p[-1]), p[-2] * l**1)
     
     return y
 
@@ -344,7 +370,7 @@ def fit_levels(levels):
     p[-2] = np.abs(p[-2])   # Only positive standard deviation allowed
     
     ### Caluclate area under individual gaussians
-    area = np.sqrt(2*np.pi) * p[:10] * p[10:-1] * np.arange(1,11)**0.5
+    area = np.sqrt(2*np.pi) * p[:10] * p[10:-1] * np.arange(1,11)**1
     area *= (1/np.sum(area))
     
     return xdata, ydata, p , area
