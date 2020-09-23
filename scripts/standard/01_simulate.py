@@ -9,13 +9,13 @@ importlib.reload(simulate)
 reps=1000
 exp=0.2
 kon=13e6
-c=1e-9
+c=500e-12
 M=9000
-koff=0.52
+koff=0.15
 
 Ns=[1,2,3,4,6,8,10,12,15,20]
 
-savedir=r'C:\Data\p04.lb-FCS\20-06-22_Simulation\scan_run04'
+savedir=r'C:\Data\p04.lb-FCS\20-06-22_Simulation\cseries_run00'
 
 #%%
 for N in Ns:

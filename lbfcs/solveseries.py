@@ -54,8 +54,8 @@ def bootstrap_props(df,parts=10,samples=500):
 def extract_observables(df):
     s_out = pd.Series(index=['tau','A','occ','taud','events','ignore','M'])
     
-    s_out.tau       = np.nanmean(   df.loc[:,'tau_lin'])                    # Changed to _ck!!!!!!
-    s_out.A         = np.nanmedian( df.loc[:,'A_lin'])                      # Changed to _ck!!!!!!
+    s_out.tau       = np.nanmean(   df.loc[:,'tau_lin'])
+    s_out.A         = np.nanmedian( df.loc[:,'A_lin'])
     s_out.occ       = np.nanmean(   df.loc[:,'n_locs'])
     s_out.taud      = np.nanmedian( df.loc[:,'tau_d'])
     s_out.events    = np.nanmedian( df.loc[:,'n_events'])
@@ -112,7 +112,7 @@ def binom_array(N,k):
 def pk_func(k_out,koff,konc,N,pks_meas):
     
     ins = [koff,konc,N]
-    try: n = [len(item) for item in ins if isinstance(item,np.ndarray)][0]
+    try: n = max([len(item) for item in ins if isinstance(item,np.ndarray)])
     except: n = 1
     
     p = (1/koff+1)/(1/koff+1/(konc)) # Probability of bound imager
@@ -141,7 +141,7 @@ def create_eqs_koff(x,data):
     m = np.shape(data)[1]
     
     ### Define weights
-    w = np.array([1, 1, 2, 1, 1, 2]) # Experimental data
+    w = np.array([2, 1, 2, 1, 1, 2]) # Experimental data
     
     system = np.array([0])
     for i in range(n):
@@ -160,6 +160,44 @@ def create_eqs_koff(x,data):
                 for k in range(0,10):
                     if data[j,6+k] >= 5e-2:
                         eq = ( w[5] / 2e-2 ) * pk_func(k,x[i],x[n],x[n+1],data[j,6+k])
+                    else:
+                        pass
+                    system = np.append(system,[eq])
+                    
+    return system[1:]
+
+#%%
+def create_eqs_konc(x,data):
+    '''
+    Set-up equation system for varying koncs with given ``data`` as returned by ``prep_data()``. 
+    '''
+    x = np.abs(x) # koff,konc and N can only be positive
+    
+    ### Estimate degrees of freedom = Number of unique koncs plus koff & N
+    vals = np.unique(data[:,0])
+    n = len(vals)          # Unique koncs
+    m = np.shape(data)[1]
+    
+    ### Define weights
+    w = np.array([2, 1, 2, 1, 1, 2]) # Experimental data
+    
+    system = np.array([0])
+    for i in range(n):
+        vals_idx = np.where(data[:,0]==vals[i])[0]  # Get indices of datapoints belonging to one konc
+        
+        for j in vals_idx:
+            eq0 = ( w[0] / (0.02*data[j,1]) ) * tau_func(x[n],x[i],data[j,1])
+            eq1 = ( w[1] / (0.02*data[j,2]) ) * A_func(x[n],x[i],x[n+1],data[j,2])
+            eq2 = ( w[2] / (0.02*data[j,3]) ) * occ_func(x[n],x[i],x[n+1],data[j,3])
+            eq3 = ( w[3] / (0.02*data[j,4]) ) * taud_func(x[i],x[n+1],data[j,4])
+            eq4 = ( w[4] / (0.02*data[j,5]) ) * events_func(data[j,-1],data[j,-2],x[n],x[i],x[n+1],data[j,5])
+            
+            system = np.append(system,[eq0,eq1,eq2])#,eq3,eq4])
+            
+            if m > 8: 
+                for k in range(0,10):
+                    if data[j,6+k] >= 5e-2:
+                        eq = ( w[5] / 2e-2 ) * pk_func(k,x[n],x[i],x[n+1],data[j,6+k])
                     else:
                         pass
                     system = np.append(system,[eq])
@@ -210,15 +248,55 @@ def solve_eqs_koff(data):
     
     return s_opt
 
+#%%
+def solve_eqs_konc(data):
+    '''
+    Solve equation system as set-up by ``create_eqsTseries_occ()`` for T-series with given ``data`` as returned by ``prep_Teries()``. 
+    '''
+    ### Get estimate for koffs, konc & N
+    vals = np.unique(data[:,0])
+    n = len(vals) # Unique concentration points (koncs)
+    x0 = []
+    for v in vals: x0.extend([10e6*v*1e-12*0.2]) # Estimate for koncs
+    tau_max = np.max(data[data[:,0]==np.min(vals),1])
+    x0.extend([1/tau_max]) # Estimate for koff
+    x0.extend([4])    # Estimate for N   
+    x0 = np.array(x0)
+    
+    xopt = optimize.least_squares(lambda x: create_eqs_konc(x,data),
+                                  x0,
+                                  # jac='3-point',
+                                  method ='trf',
+                                  # tr_solver='exact',
+                                  )
+    x = xopt.x
+    success = xopt.success
+    
+    # xopt,xcov, info, msg, ier = optimize.leastsq(create_eqs_konc,
+    #                                               x0,
+    #                                               args=(data),
+    #                                               full_output=1,
+    #                                               )
+    # x = xopt
+    # success = ier>0
+    
+    ### Prepare output
+    out_idx = ['konc%i'%v for v in vals] + ['koff','N'] + ['success']
+    out_vals = [np.abs(x[i]) for i in range(n)] + [np.abs(x[n]),np.abs(x[n+1]),success]
+    s_opt = pd.Series(out_vals,index=out_idx)
+    
+    return s_opt
 
 #%%
-def solve_eqs(df):
+def solve_eqs(df,mode='konc'):
     '''
-    Combination of ``prep_data()`` and ``solve_eqs_koff()`` to set-up and find solution.
+    Combination of ``prep_data()`` and ``solve_eqs_*()`` to set-up and find solution.
     '''
     data = prep_data(df)
-    s_opt = solve_eqs_koff(data)
-    
+    if mode =='koff':
+        s_opt = solve_eqs_koff(data)
+    if mode =='konc':
+        s_opt = solve_eqs_konc(data)
     return s_opt
 
 #%%
@@ -239,10 +317,9 @@ def combine_observables(df):
 def combine_solutions(df):
     
     cols = df.columns.to_list()
-    cols = [c for c in cols if bool(re.search('koff*|konc|N$',c))]
+    cols = [c for c in cols if bool(re.search('koff*|konc*|N$',c))]
     
     s_out = pd.Series(index = cols + [c+'_std' for c in cols])
-    s_out = s_out.sort_index()
     
     for c in cols:
         s_out[c]        = np.nanmean(df[c])
@@ -254,9 +331,6 @@ def combine_solutions(df):
 def expected_observables(df,koff,konc,N):
     
     cols = df.columns.to_list()
-    # cols = [c for c in cols if not bool(re.search('setting|vary|rep|part',c))]
-    # cols = [c for c in cols if not bool(re.search('_std',c))]
-    # cols = [c for c in cols if not bool(re.search('ignore|M',c))]
     
     df_out = pd.DataFrame(columns = cols)
     
@@ -267,14 +341,14 @@ def expected_observables(df,koff,konc,N):
     df_out['ignore'] = df.ignore.values
     df_out['M']      = df.M.values
     
-    df_out['tau']    = tau_func(koff,konc,0)
-    df_out['A']      = A_func(koff,konc,N,0)
-    df_out['occ']    = occ_func(koff,konc,N,0)
-    df_out['taud']   = taud_func(konc,N,0)
-    df_out['events'] = events_func(df.M.values,df.ignore.values,koff,konc,N,0)
+    df_out['tau']    = tau_func(koff,konc,0) * np.ones(len(df))
+    df_out['A']      = A_func(koff,konc,N,0) * np.ones(len(df))
+    df_out['occ']    = occ_func(koff,konc,N,0) * np.ones(len(df))
+    df_out['taud']   = taud_func(konc,N,0) * np.ones(len(df))
+    df_out['events'] = events_func(df.M.values,df.ignore.values,koff,konc,N,0) * np.ones(len(df))
     
     for k in range(0,10):
-        df_out['p'+('%i'%(k+1)).zfill(2)] = pk_func(k,koff,konc,N,np.zeros(10))
+        df_out['p'+('%i'%(k+1)).zfill(2)] = pk_func(k,koff,konc,N,0) * np.ones(len(df))
         
     return df_out
 
@@ -294,22 +368,22 @@ def get_levels(props,locs,sol):
     rep     = float (np.unique(props.rep))
     
     ### Get tau @(setting,vary,rep) in props and koff0 @(setting,:,:) in solution
-    koff = float(sol.loc[sol.setting==setting,'koff0'] )                       # Changed to _ck!!!!!!
+    koff = float(sol.loc[sol.setting==setting,'koff'] )                      
     tau = np.nanmean(props.tau_lin)
 
     ### Group properties @(setting,vary,rep) in props
     groups  = props.group.values 
-    eps     = eps_func(props.B.values,koff,tau)                                # Changed to _ck!!!!!!
+    eps     = eps_func(props.B.values,koff,tau)                                
     nlocs   = np.round( ( props.n_locs * props.M ).values ).astype(int)
     
     ### Query locs for groups in props @(setting,vary,rep)
     select_subset = (locs.setting == setting) & (locs.vary == vary) & (locs.rep == rep)
-    locs_sub = locs.loc[select_subset,['group','photons']]                     # Changed to _ck!!!!!!
+    locs_sub = locs.loc[select_subset,['group','photons']]                     
     locs_sub = locs_sub.query('group in @groups')
     
     ### Transform photons to imager levels
     norm     = [eps[g] for g in range(len(groups)) for i in range(nlocs[g])]
-    levels   = locs_sub.photons.values/norm                                    # Changed to _ck!!!!!!
+    levels   = locs_sub.photons.values/norm
     
     ### Create normalized histogram of levels of fixed bin width
     bin_width = 0.1 
@@ -356,7 +430,7 @@ def fit_levels(levels):
     for i,l in enumerate(range(1,11)): a[i] = ydata[np.abs(xdata-l) < bin_width/2]
     c = np.ones(1) * 0.25
     
-    p0 = np.concatenate([a,c,[0]])
+    p0 = np.concatenate([a,c,[1e-2]])
     
     ### Fit
     out = optimize.least_squares(lambda p: gauss_comb(xdata,p) - ydata,
