@@ -25,13 +25,16 @@ savename=os.path.splitext(os.path.basename(sys.argv[0]))[0]
 
 ############################################################## Define data
 dir_names=[]
-dir_names.extend([r'C:\Data\p04.lb-FCS\20-07-15_Tutorial']*3)
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-30_SDS_T21/id114_5nM_p35uW_T21_1'])
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-30_SDS_T21/id114_10nM_p35uW_T21_1'])
+# dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-30_SDS_T21/id114_20nM_p35uW_T21_1'])
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-30_SDS_T21/id114_20nM_p35uW_T21_2'])
 
 file_names=[]
-# file_names.extend(['id64_5nM_p35uW_T23_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
-file_names.extend(['id64_5nM_p35uW_T23_1_MMStack_Pos0.ome_locs_render_picked_f0-9000_props.hdf5'])
-file_names.extend(['id64_10nM_p35uW_T23_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
-file_names.extend(['id64_20nM_p35uW_T23_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
+file_names.extend(['id114_5nM_p35uW_T21_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
+file_names.extend(['id114_10nM_p35uW_T21_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
+# file_names.extend(['id114_20nM_p35uW_T21_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
+file_names.extend(['id114_20nM_p35uW_T21_2_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
 
 ############################################################## Read in data
 #### Create list of paths
@@ -39,9 +42,11 @@ path=[os.path.join(dir_names[i],file_names[i]) for i in range(0,len(file_names))
 #### Read in locs of path
 locs_props=pd.concat([io.load_locs(p)[0] for p in path],keys=range(len(file_names)),names=['expID'])
 X=locs_props.copy()
+X=X.reset_index(level=['expID'])
 
 ############################################################## Filter
-X=cseries._filter(X)
+X=X.groupby('expID').apply(cseries._filter)
+X=X.drop(columns=['expID'])
 
 ############################################################## Statistics of observables
 X_stats=cseries._stats(X,CycleTime)
@@ -70,7 +75,7 @@ print('    kon  = %.2e'%(X_fit.loc['qpaint','popt0']))
 #### Plot certain distribtions
 field='N'
 subset=0 # Certain measurement
-subset=X.conc>1 # Boolean subset, e.g. imager concentration > 10nM
+subset=X.vary>1 # Boolean subset, e.g. imager concentration > 10nM
 
 bins='fd'
 bins=np.linspace(0,3,50)

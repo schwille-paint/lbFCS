@@ -195,25 +195,25 @@ def props_fcs(df,NoFrames,max_it=1):
     
     ############################# Get trace and ac
     trace,ac       = trace_and_ac(df,NoFrames)
-    # trace_ck,ac_ck = trace_and_ac(df,NoFrames,field = 'photons_ck') # Trace with applied Chung-Kennedy Filter
+    trace_ck,ac_ck = trace_and_ac(df,NoFrames,field = 'photons_ck') # Trace with applied Chung-Kennedy Filter
     ac_zeros = np.sum(ac[1:,1]<0.1) # Number of lagtimes with almost zero ac values, can be used for filtering
     
     ############################# Get autocorrelation fit results
     A,tau         = fit_ac(ac,max_it)[:2]
     A_lin,tau_lin = fit_ac_lin(ac,max_it)[:2]
-    # A_lin_ck,tau_lin_ck = fit_ac_lin(ac_ck,max_it)[:2] # Fit of autocorrelation with applied Chung-Kennedy Filter
+    A_lin_ck,tau_lin_ck = fit_ac_lin(ac_ck,max_it)[:2] # Fit of autocorrelation with applied Chung-Kennedy Filter
     
     ############################# Calculate brightness value B using trace
     B = np.var(trace)/np.mean(trace)
-    # B_ck = np.var(trace_ck)/np.mean(trace_ck) # Brightness of Chung-Kennedy filtered trace
+    B_ck = np.var(trace_ck)/np.mean(trace_ck) # Brightness of Chung-Kennedy filtered trace
     
     ############################# Assignment to series 
     s_out=pd.Series({'ac_zeros':ac_zeros,                          # Number of almost zeros entries in AC
                      'A':A,'tau':tau,                              # AC fit 
                      'A_lin':A_lin,'tau_lin':tau_lin,              # AC linear fit
-                     # 'A_lin_ck':A_lin_ck,'tau_lin_ck':tau_lin_ck,  # Chung-Kennedy-AC linear fit
+                     'A_lin_ck':A_lin_ck,'tau_lin_ck':tau_lin_ck,  # Chung-Kennedy-AC linear fit
                      'B':B,                                        # Brightness
-                     # 'B_ck':B_ck,                                  # Brightness
+                     'B_ck':B_ck,                                  # Brightness
                      }) 
     
     return s_out

@@ -15,23 +15,29 @@ importlib.reload(props)
 
 ############################################################# Which experiment?
 # Experimental setting,  like i.e constant variables like labeling, origami design etc.
-setting = [20]*3
+setting = [1]*4
 # Controlled varying experimental variable like temperature in C (21,22,23) or concentration in pM (1000, 5000)
-vary    = [500,1000,2000]
+vary    = [5000,10000,20000,20000]
 ############################################# Load raw data
-# dir_names=[]
-# dir_names.extend([r'C:\Data\p04.lb-FCS\19-06-05_N=12\id63_5nM_p35uW_1'])
+dir_names=[]
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-30_SDS_T21/id114_5nM_p35uW_T21_1'])
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-30_SDS_T21/id114_10nM_p35uW_T21_1'])
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-30_SDS_T21/id114_20nM_p35uW_T21_1'])
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-30_SDS_T21/id114_20nM_p35uW_T21_2'])
 
-# file_names=[]
-# file_names.extend(['id63_5nM_p35uW_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
+file_names=[]
+file_names.extend(['id114_5nM_p35uW_T21_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
+file_names.extend(['id114_10nM_p35uW_T21_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
+file_names.extend(['id114_20nM_p35uW_T21_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
+file_names.extend(['id114_20nM_p35uW_T21_2_MMStack_Pos0.ome_locs_render_picked.hdf5'])
 
-dir_name=r'C:\Data\p04.lb-FCS\20-06-22_Simulation\cseries_run02'
-paths=glob.glob(os.path.join(dir_name+r'\*.hdf5'))
+# dir_name=r'C:\Data\p04.lb-FCS\20-06-22_Simulation\cseries_run02'
+# paths=glob.glob(os.path.join(dir_name+r'\*.hdf5'))
 
-paths=[path for path in paths if not bool(re.search('props',path))]
+# paths=[path for path in paths if not bool(re.search('props',path))]
 # paths=[path for path in paths if bool(re.search('koff15',path))]
 # paths=[path for path in paths if bool(re.search('konc006',path))]
-paths=[path for path in paths if bool(re.search('N20',path))]
+# paths=[path for path in paths if bool(re.search('N20',path))]
 
 ############################################ Set parameters 
 params={'ignore':1,
@@ -47,7 +53,7 @@ params={'ignore':1,
 #%%
 importlib.reload(props)                 
 failed_path = []
-# paths       = [ os.path.join(dir_names[i],file_names[i]) for i in range(len(file_names)) ]
+paths       = [ os.path.join(dir_names[i],file_names[i]) for i in range(len(file_names)) ]
 conditions  = [(setting[i],vary[i]) for i in range(len(paths))]
 
 for i, path in enumerate(paths):

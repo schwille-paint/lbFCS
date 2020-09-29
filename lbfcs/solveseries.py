@@ -92,7 +92,7 @@ def occ_func(koff,konc,N,occ_meas):
     occ = occ - occ_meas
     return occ
 
-def taud_func(konc,N,taud_meas): return 1/(N*konc) - taud_meas
+def taud_func(konc,N,taud_meas): return 1/(N*konc*1.3) - taud_meas
 def events_func(frames,ignore,koff,konc,N,events_meas):
     p       = ( 1/koff + 1 ) / ( 1/koff + 1/konc )   # Probability of bound imager
     darktot = np.abs(1-p)**N * frames                # Expected sum of dark times
@@ -376,18 +376,18 @@ def get_levels(props,locs,sol):
 
     ### Group properties @(setting,vary,rep) in props
     groups  = props.group.values 
-    eps     = eps_func(props.B.values,koff,tau)                                
+    eps     = eps_func(props.B_ck.values,koff,tau)                                          # changed to B_ck!                            
     nlocs   = np.round( ( props.n_locs * props.M ).values ).astype(int)
     
     ### Query locs for groups in props @(setting,vary,rep)
     select_subset = (locs.setting == setting) & (locs.vary == vary) & (locs.rep == rep)
-    locs_sub = locs.loc[select_subset,['group','photons']]                     
+    locs_sub = locs.loc[select_subset,['group','photons_ck']]                               # changed to photons_ck!                   
     locs_sub = locs_sub.query('group in @groups')
 
 
     ### Transform photons to imager levels
     norm     = [eps[g] for g in range(len(groups)) for i in range(nlocs[g])]
-    levels   = locs_sub.photons.values/norm
+    levels   = locs_sub.photons_ck.values/norm                                              # changed to photons_ck!  
 
     
     ### Create normalized histogram of levels of fixed bin width
@@ -413,7 +413,7 @@ def gauss_comb(x,p):
     y = np.zeros(len(x))
     
     for i,l in enumerate(range(1,11)):
-        y += gauss_func(x,p[i], l*(1+p[-1]), p[-2] * l**1)
+        y += gauss_func(x,p[i], l*(1+p[-1]), p[-2] * l**0.5)
     
     return y
 
@@ -449,7 +449,7 @@ def fit_levels(levels):
     p[-2] = np.abs(p[-2])   # Only positive standard deviation allowed
     
     ### Caluclate area under individual gaussians
-    area = np.sqrt(2*np.pi) * p[:10] * p[10:-1] * np.arange(1,11)**1
+    area = np.sqrt(2*np.pi) * p[:10] * p[10:-1] * np.arange(1,11)**0.5
     area *= (1/np.sum(area))
     
     return xdata, ydata, p , area

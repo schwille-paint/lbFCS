@@ -5,16 +5,12 @@ import importlib
 
 #%%
 def _filter(df):
+    
     df_out=df.copy()
-    
-    if 'expID' in df.columns.values: df_out = df.droplevel('expID') # Remove expID level
-    
     df_out=df_out[np.isfinite(df_out.tau_lin)]   # Remove NaNs
-    df_out = df_out[df_out.ac_zeros<1]         # Remove groups with zero AC values
-    df_out = df_out[df_out.it_lin<10]          # Remove groups that did not converge
     
     # Old filter criterium
-    df_out = df_out[(np.abs(df_out.tau_one-df_out.tau_lin_one)/df_out.tau_lin_one)<0.2]
+    df_out = df_out[(np.abs(df_out.tau-df_out.tau_lin)/df_out.tau_lin)<0.2]
     
     for i in range(3): # AC time filter
         tau = np.median(df_out.tau_lin.values)
@@ -66,7 +62,7 @@ def _stats(df,CycleTime):
     df_stats.loc[:,'groups']=df.groupby('expID').size()
     
     ##### Add imager concentration
-    df_stats.loc[:,'c']=df.groupby('expID').apply(lambda df: df.conc.mean()).values
+    df_stats.loc[:,'c']=df.groupby('expID').apply(lambda df: df.vary.mean()).values
     df_stats.rename(columns={'c':'conc'},inplace=True)
     
     return df_stats
@@ -83,8 +79,8 @@ def _fit(df,df_stats):
     maxc=df_stats.conc.max()
     tau_minc=df_stats.loc[df_stats.conc==minc,('tau_lin','mean')].mean()
     tau_maxc=df_stats.loc[df_stats.conc==maxc,('tau_lin','mean')].mean()
-    minc=minc*1e-9 # Convert: [nM]->[M]
-    maxc=maxc*1e-9 # Convert: [nM]->[M]
+    minc=minc*1e-12 # Convert: [pM]->[M]
+    maxc=maxc*1e-12 # Convert: [pM]->[M]
     
     koff=1/tau_minc
     kon=-koff**2*((tau_minc-tau_maxc)/(minc-maxc))
@@ -92,7 +88,7 @@ def _fit(df,df_stats):
     #### mono_tau vs c (lbFCS)
     p0=[koff,kon]
     popt_lbfcs,pcov_lbfcs=curve_fit(varfuncs.tau_of_c,
-                             df_stats.conc*1e-9,
+                             df_stats.conc*1e-12,
                              df_stats.loc[:,('tau_lin','mean')],
                              p0=p0,
                              sigma=None,
@@ -100,7 +96,7 @@ def _fit(df,df_stats):
     #### 1/mono_A vs c
     p0=[kon/koff,1e-3]
     popt_lbfcsA,pcov_lbfcsA=curve_fit(varfuncs.Ainv_of_c,
-                          df_stats.conc*1e-9,
+                          df_stats.conc*1e-12,
                           1/df_stats.loc[:,('A_lin','50%')],
                           p0=p0,
                           sigma=None,
@@ -110,7 +106,7 @@ def _fit(df,df_stats):
     p0=[kon,1e-3]
     try:
         popt_qpaint,pcov_qpaint=curve_fit(varfuncs.taudinv_of_c,
-                          df_stats.conc*1e-9,
+                          df_stats.conc*1e-12,
                           1/df_stats.loc[:,('tau_d','50%')],
                           p0=p0,
                           sigma=None,
@@ -129,7 +125,7 @@ def _fit(df,df_stats):
     
     #### Assign number of docking sites to df_stats
     for expID in df_stats.index:
-        c=df_stats.loc[expID,('conc','')]*1e-9 # Concentration [M]
+        c=df_stats.loc[expID,('conc','')]*1e-12 # Concentration [M]
         df.loc[expID,'N']=(koff/(kon*c))*(1./df.loc[expID,'A'].values)
         df_stats.loc[expID,('N','50%')]=df.loc[expID,'N'].median()
         df_stats.loc[expID,('N','25%')]=np.percentile(df.loc[expID,'N'],25)
@@ -171,8 +167,8 @@ def _prep_tau(df_stats,df_fit):
     yerr=df_stats.loc[:,(field,'std')]
     
     popt=df_fit.loc['lbfcs',:]
-    xfit=np.arange(0,max(x)+50,0.01)
-    yfit=varfuncs.tau_of_c(xfit*1e-9,*popt)
+    xfit=np.linspace(0,max(x)+0.2*max(x),100)
+    yfit=varfuncs.tau_of_c(xfit*1e-12,*popt)
     
     return x,y,yerr,xfit,yfit
     
@@ -188,7 +184,7 @@ def _tau_onax(ax,df_stats,df_fit,color='red',label_data='data',label_fit='fit'):
     
     ax.set_xlim(0,max(x)+0.2*max(x))
     ax.set_ylim(min(y)-0.3*min(y),max(y)+0.3*max(y))
-    ax.set_xlabel('Concentration (nM)')
+    ax.set_xlabel('Concentration (pM)')
     ax.set_ylabel(r'$\langle\tau\rangle$ (s)')
     ax.legend(loc='upper right')
     
@@ -206,8 +202,8 @@ def _prep_A(df_stats,df_fit):
           df_stats.loc[:,(field,'75%')]/df_stats.loc[:,(field,'50%')]**2]
     
     popt=df_fit.loc['lbfcsA',:]
-    xfit=np.arange(0,max(x)+50,0.01)
-    yfit=varfuncs.Ainv_of_c(xfit*1e-9,*popt)
+    xfit=np.linspace(0,max(x)+0.2*max(x),100)
+    yfit=varfuncs.Ainv_of_c(xfit*1e-12,*popt)
     
     return x,y,yerr,xfit,yfit
  
@@ -223,7 +219,7 @@ def _A_onax(ax,df_stats,df_fit,color='red',label_data='data',label_fit='fit'):
     
     ax.set_xlim(0,max(x)+0.2*max(x))
     ax.set_ylim(0,max(y)+0.3*max(y))
-    ax.set_xlabel('Concentration (nM)')
+    ax.set_xlabel('Concentration (pM)')
     ax.set_ylabel(r'$1/A$ (a.u.)')
     ax.legend(loc='upper left')
     
@@ -241,8 +237,8 @@ def _prep_tau_d(df_stats,df_fit):
           df_stats.loc[:,(field,'75%')]/df_stats.loc[:,(field,'50%')]**2]
     
     popt=df_fit.loc['qpaint',:]
-    xfit=np.arange(0,max(x)+50,0.01)
-    yfit=varfuncs.taudinv_of_c(xfit*1e-9,*popt)
+    xfit=np.linspace(0,max(x)+0.2*max(x),100)
+    yfit=varfuncs.taudinv_of_c(xfit*1e-12,*popt)
     
     return x,y,yerr,xfit,yfit
  
@@ -258,7 +254,7 @@ def _tau_d_onax(ax,df_stats,df_fit,color='red',label_data='data',label_fit='fit'
     
     ax.set_xlim(0,max(x)+0.2*max(x))
     ax.set_ylim(0,max(y)+0.3*max(y))
-    ax.set_xlabel('Concentration (nM)')
+    ax.set_xlabel('Concentration (pM)')
     ax.set_ylabel(r'$1/\tau_d$ (Hz)')
     ax.legend(loc='upper left')
     
