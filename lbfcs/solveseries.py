@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import re
 import numba as numba
+import time
 from scipy.special import binom
 from lmfit import minimize
 import scipy.optimize as optimize
@@ -91,13 +92,12 @@ def occ_func(koff,konc,N,occ_meas):
     occ = occ - occ_meas
     return occ
 
-def taud_func(konc,N,taud_meas): return 1 / (N*konc*1) - taud_meas      # !!!!! Factor inserted for experimental data???
-
+def taud_func(konc,N,taud_meas): return 1/(N*konc) - taud_meas
 def events_func(frames,ignore,koff,konc,N,events_meas):
     p       = ( 1/koff + 1 ) / ( 1/koff + 1/konc )   # Probability of bound imager
     darktot = np.abs(1-p)**N * frames                # Expected sum of dark times
     taud    = taud_func(konc,N,0)                    # Mean dark time
-    events  = darktot / (taud + ignore+.5)           # Expected number of events
+    events  = darktot / (taud + ignore +.5)           # Expected number of events
     return events - events_meas
 
 def binom_array(N,k):
@@ -129,7 +129,7 @@ def pk_func(k_out,koff,konc,N,pks_meas):
     return pks[:,k_out] - pks_meas
 
 #%%
-def create_eqs_koff(x,data):
+def create_eqs_koff(x,data,model):
     '''
     Set-up equation system for varying koffs with given ``data`` as returned by ``prep_data()``. 
     '''
@@ -154,20 +154,21 @@ def create_eqs_koff(x,data):
             eq3 = ( w[3] / (0.02*data[j,4]) ) * taud_func(x[n],x[n+1],data[j,4])
             eq4 = ( w[4] / (0.02*data[j,5]) ) * events_func(data[j,-1],data[j,-2],x[i],x[n],x[n+1],data[j,5])
             
-            system = np.append(system,[eq0,eq1,eq2,eq3,eq4])
+            if model=='full': system = np.append(system,[eq0,eq1,eq2,eq3,eq4])
+            else: system = np.append(system,[eq0,eq1,eq2])
             
             if m > 8: 
                 for k in range(0,10):
                     if data[j,6+k] >= 5e-2:
                         eq = ( w[5] / 2e-2 ) * pk_func(k,x[i],x[n],x[n+1],data[j,6+k])
                     else:
-                        pass
+                        eq = 0
                     system = np.append(system,[eq])
                     
     return system[1:]
 
 #%%
-def create_eqs_konc(x,data):
+def create_eqs_konc(x,data,model):
     '''
     Set-up equation system for varying koncs with given ``data`` as returned by ``prep_data()``. 
     '''
@@ -192,20 +193,21 @@ def create_eqs_konc(x,data):
             eq3 = ( w[3] / (0.02*data[j,4]) ) * taud_func(x[i],x[n+1],data[j,4])
             eq4 = ( w[4] / (0.02*data[j,5]) ) * events_func(data[j,-1],data[j,-2],x[n],x[i],x[n+1],data[j,5])
             
-            system = np.append(system,[eq0,eq1,eq2])#,eq3,eq4])
+            if model=='full': system = np.append(system,[eq0,eq1,eq2,eq3,eq4])
+            else: system = np.append(system,[eq0,eq1,eq2])
             
             if m > 8: 
                 for k in range(0,10):
                     if data[j,6+k] >= 5e-2:
-                        eq = ( w[5] / 2e-2 ) * pk_func(k,x[n],x[i],x[n+1],data[j,6+k])
+                        eq = ( w[5] / (2e-2) ) * pk_func(k,x[n],x[i],x[n+1],data[j,6+k])
                     else:
-                        pass
+                        eq = 0
                     system = np.append(system,[eq])
                     
     return system[1:]
 
 #%%
-def solve_eqs_koff(data):
+def solve_eqs_koff(data,model):
     '''
     Solve equation system as set-up by ``create_eqsTseries_occ()`` for T-series with given ``data`` as returned by ``prep_Teries()``. 
     '''
@@ -223,23 +225,23 @@ def solve_eqs_koff(data):
     x0 = np.array(x0)
     
     ### Solve system of equations
-    # xopt = optimize.least_squares(lambda x: create_eqs_koff(x,data),
-    #                               x0,
-    #                               # jac='3-point',
-    #                               method ='trf',
-    #                               # loss = 'soft_l1',
-    #                               # tr_solver='exact',
-    #                               )
-    # x = xopt.x
-    # success = xopt.success
+    xopt = optimize.least_squares(lambda x: create_eqs_koff(x,data,model),
+                                  x0,
+                                  # jac='3-point',
+                                  method ='trf',
+                                  # loss = 'soft_l1',
+                                  # tr_solver='exact',
+                                  )
+    x = xopt.x
+    success = xopt.success
     
-    xopt,xcov, info, msg, ier = optimize.leastsq(create_eqs_koff,
-                                                 x0,
-                                                 args=(data),
-                                                 full_output=1,
-                                                 )
-    x = xopt
-    success = ier>0
+    # xopt,xcov, info, msg, ier = optimize.leastsq(create_eqs_koff,
+    #                                              x0,
+    #                                              args=(data),
+    #                                              full_output=1,
+    #                                              )
+    # x = xopt
+    # success = ier>0
     
     ### Prepare output
     out_idx = ['koff%i'%i for i in range(n)] + ['konc','N'] + ['success']
@@ -249,7 +251,7 @@ def solve_eqs_koff(data):
     return s_opt
 
 #%%
-def solve_eqs_konc(data):
+def solve_eqs_konc(data,model):
     '''
     Solve equation system as set-up by ``create_eqsTseries_occ()`` for T-series with given ``data`` as returned by ``prep_Teries()``. 
     '''
@@ -263,7 +265,8 @@ def solve_eqs_konc(data):
     x0.extend([4])    # Estimate for N   
     x0 = np.array(x0)
     
-    xopt = optimize.least_squares(lambda x: create_eqs_konc(x,data),
+    ### Solve system of equations
+    xopt = optimize.least_squares(lambda x: create_eqs_konc(x,data,model),
                                   x0,
                                   # jac='3-point',
                                   method ='trf',
@@ -274,7 +277,7 @@ def solve_eqs_konc(data):
     
     # xopt,xcov, info, msg, ier = optimize.leastsq(create_eqs_konc,
     #                                               x0,
-    #                                               args=(data),
+    #                                               args=(data,model),
     #                                               full_output=1,
     #                                               )
     # x = xopt
@@ -287,16 +290,16 @@ def solve_eqs_konc(data):
     
     return s_opt
 
-#%%
-def solve_eqs(df,mode='konc'):
+#%%'
+def solve_eqs(df,series='konc',model='full'):
     '''
     Combination of ``prep_data()`` and ``solve_eqs_*()`` to set-up and find solution.
     '''
     data = prep_data(df)
-    if mode =='koff':
-        s_opt = solve_eqs_koff(data)
-    if mode =='konc':
-        s_opt = solve_eqs_konc(data)
+    if series =='koff':
+        s_opt = solve_eqs_koff(data,model)
+    if series =='konc':
+        s_opt = solve_eqs_konc(data,model)
     return s_opt
 
 #%%
@@ -361,7 +364,7 @@ def eps_func(B,koff,tau):
 
 #%%
 def get_levels(props,locs,sol):
-    
+
     ### Which data?
     setting = float (np.unique(props.setting))
     vary    = float (np.unique(props.vary))
@@ -380,21 +383,23 @@ def get_levels(props,locs,sol):
     select_subset = (locs.setting == setting) & (locs.vary == vary) & (locs.rep == rep)
     locs_sub = locs.loc[select_subset,['group','photons']]                     
     locs_sub = locs_sub.query('group in @groups')
-    
+
+
     ### Transform photons to imager levels
     norm     = [eps[g] for g in range(len(groups)) for i in range(nlocs[g])]
     levels   = locs_sub.photons.values/norm
+
     
     ### Create normalized histogram of levels of fixed bin width
     bin_width = 0.1 
     ydata,xdata = np.histogram(levels,
-                               bins=np.arange(bin_width/2,11+bin_width,bin_width),
-                               weights=100*np.ones(len(levels))/len(levels))
+                                bins=np.arange(bin_width/2,11+bin_width,bin_width),
+                                weights=100*np.ones(len(levels))/len(levels))
     xdata = xdata[:-1] + bin_width/2 # Adjust bins to center position
     
     ### Define output
     s_out = pd.Series(ydata,index=xdata)
-    
+
     return s_out
 
 #%%

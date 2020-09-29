@@ -7,15 +7,15 @@ importlib.reload(simulate)
 
 ### Define system constants
 reps=1000
-exp=0.2
+exp=0.1
 kon=13e6
-c=500e-12
-M=9000
+c=2000e-12
+M=18000
 koff=0.15
 
-Ns=[1,2,3,4,6,8,10,12,15,20]
+Ns=[20]#1,2,3,4,6,8,10,12,15,20]
 
-savedir=r'C:\Data\p04.lb-FCS\20-06-22_Simulation\cseries_run00'
+savedir=r'C:\Data\p04.lb-FCS\20-06-22_Simulation\cseries_run02'
 
 #%%
 for N in Ns:

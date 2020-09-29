@@ -15,9 +15,9 @@ importlib.reload(props)
 
 ############################################################# Which experiment?
 # Experimental setting,  like i.e constant variables like labeling, origami design etc.
-setting = [20]
+setting = [20]*3
 # Controlled varying experimental variable like temperature in C (21,22,23) or concentration in pM (1000, 5000)
-vary    = [500]
+vary    = [500,1000,2000]
 ############################################# Load raw data
 # dir_names=[]
 # dir_names.extend([r'C:\Data\p04.lb-FCS\19-06-05_N=12\id63_5nM_p35uW_1'])
@@ -25,12 +25,12 @@ vary    = [500]
 # file_names=[]
 # file_names.extend(['id63_5nM_p35uW_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
 
-dir_name=r'C:\Data\p04.lb-FCS\20-06-22_Simulation\cseries_run00'
+dir_name=r'C:\Data\p04.lb-FCS\20-06-22_Simulation\cseries_run02'
 paths=glob.glob(os.path.join(dir_name+r'\*.hdf5'))
 
 paths=[path for path in paths if not bool(re.search('props',path))]
-paths=[path for path in paths if bool(re.search('koff15',path))]
-paths=[path for path in paths if bool(re.search('konc006',path))]
+# paths=[path for path in paths if bool(re.search('koff15',path))]
+# paths=[path for path in paths if bool(re.search('konc006',path))]
 paths=[path for path in paths if bool(re.search('N20',path))]
 
 ############################################ Set parameters 
