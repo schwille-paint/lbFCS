@@ -7,15 +7,15 @@ importlib.reload(simulate)
 
 ### Define system constants
 reps=1000
-exp=0.1
-kon=13e6
-c=2000e-12
-M=18000
-koff=0.15
+exp=0.2
+kon=6.5e6
+c=4000e-12
+M=9000
+koff=0.28
 
-Ns=[20]#1,2,3,4,6,8,10,12,15,20]
+Ns=[1,2,3,4,8,12,20]
 
-savedir=r'C:\Data\p04.lb-FCS\20-06-22_Simulation\cseries_run02'
+savedir=r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-10-09_Simulation-Ringberg/cseries_koff28_kon06'
 
 #%%
 for N in Ns:

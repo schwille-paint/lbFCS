@@ -10,6 +10,7 @@ LOCS_DTYPE = [
     ('x', 'f4'),
     ('y', 'f4'),
     ('photons', 'f4'),
+    ('photons_ck', 'f4'),
     ('sx', 'f4'),
     ('sy', 'f4'),
     ('bg', 'f4'),
@@ -138,6 +139,10 @@ def generate_locs(savepath,reps,M,CycleTime,N,koff,kon,c,factor=10):
     
     ### Remove zeros in photons
     locs=locs[locs['photons']>0]
+    
+    ### Add photon noise to photons_ck
+    locs['photons_ck']=locs['photons'] # Copy
+    
     ### Convert 
     locs=pd.DataFrame(locs)
     

@@ -92,7 +92,7 @@ def occ_func(koff,konc,N,occ_meas):
     occ = occ - occ_meas
     return occ
 
-def taud_func(konc,N,taud_meas): return 1/(N*konc*1.3) - taud_meas
+def taud_func(konc,N,taud_meas): return 1/(N*konc*1) - taud_meas
 def events_func(frames,ignore,koff,konc,N,events_meas):
     p       = ( 1/koff + 1 ) / ( 1/koff + 1/konc )   # Probability of bound imager
     darktot = np.abs(1-p)**N * frames                # Expected sum of dark times
@@ -104,8 +104,9 @@ def binom_array(N,k):
     try:
         c = np.zeros(len(N))
         for i,n in enumerate(N):
-            c[i] = binom(n,k)
-    except: c = binom(N,k)
+            c[i] = binom(n,k)           
+    except:
+        c = binom(N,k)
     
     return c
 
@@ -115,7 +116,7 @@ def pk_func(k_out,koff,konc,N,pks_meas):
     try: n = max([len(item) for item in ins if isinstance(item,np.ndarray)])
     except: n = 1
     
-    p = (1/koff+1)/(1/koff+1/(konc)) # Probability of bound imager
+    p = (1/koff+1)/(1/koff+1/konc) # Probability of bound imager
     
     pks = np.zeros((n,10))
     for i,k in enumerate(range(1,11)):
@@ -141,7 +142,7 @@ def create_eqs_koff(x,data,model):
     m = np.shape(data)[1]
     
     ### Define weights
-    w = np.array([2, 1, 2, 1, 1, 2]) # Experimental data
+    w = np.array([1, 1, 1, 1, 1, 1]) # Experimental data
     
     system = np.array([0])
     for i in range(n):
@@ -180,7 +181,7 @@ def create_eqs_konc(x,data,model):
     m = np.shape(data)[1]
     
     ### Define weights
-    w = np.array([2, 1, 2, 1, 1, 2]) # Experimental data
+    w = np.array([1, 1, 1, 1, 1, 1]) # Experimental data
     
     system = np.array([0])
     for i in range(n):
@@ -331,28 +332,28 @@ def combine_solutions(df):
     return s_out
 
 #%%
-def expected_observables(df,koff,konc,N):
+def expected_observables(obs,sol):
+    df_out = obs.copy()
     
-    cols = df.columns.to_list()
+    setting = int(np.unique(obs.setting.values))
+    select = sol.setting == setting
     
-    df_out = pd.DataFrame(columns = cols)
+    M      = obs.M.values
+    ignore = int(np.unique(obs.ignore.values))
+    koff   = float(sol.loc[select,'koff'])
+    concs  = obs.vary.values
+    koncs  = sol.loc[select,['konc%i'%conc for conc in concs]].values.flatten()
+    N      = float(sol.loc[select,'N'])
     
-    df_out['setting'] = df.setting.values
-    df_out['vary']    = df.vary.values
-    df_out['rep']     = df.rep.values
-    
-    df_out['ignore'] = df.ignore.values
-    df_out['M']      = df.M.values
-    
-    df_out['tau']    = tau_func(koff,konc,0) * np.ones(len(df))
-    df_out['A']      = A_func(koff,konc,N,0) * np.ones(len(df))
-    df_out['occ']    = occ_func(koff,konc,N,0) * np.ones(len(df))
-    df_out['taud']   = taud_func(konc,N,0) * np.ones(len(df))
-    df_out['events'] = events_func(df.M.values,df.ignore.values,koff,konc,N,0) * np.ones(len(df))
+    df_out['tau']    = tau_func(koff,koncs,0)
+    df_out['A']      = A_func(koff,koncs,N,0)
+    df_out['occ']    = occ_func(koff,koncs,N,0)
+    df_out['taud']   = taud_func(koncs,N,0)
+    df_out['events'] = events_func(M,ignore,koff,koncs,N,0)
     
     for k in range(0,10):
-        df_out['p'+('%i'%(k+1)).zfill(2)] = pk_func(k,koff,konc,N,0) * np.ones(len(df))
-        
+        df_out['p'+('%i'%(k+1)).zfill(2)] = pk_func(k,koff,koncs,N,0)
+    
     return df_out
 
 #%%
@@ -363,12 +364,19 @@ def eps_func(B,koff,tau):
     return eps
 
 #%%
-def get_levels(props,locs,sol):
-
+def get_levels(props,locs,sol,filtered=True):
+    
+    ### Decide which photon and derived values to use
+    photons_field = 'photons'
+    B_field = 'B'
+    if filtered:
+        photons_field += '_ck'
+        B_field += '_ck'
+    
     ### Which data?
-    setting = float (np.unique(props.setting))
-    vary    = float (np.unique(props.vary))
-    rep     = float (np.unique(props.rep))
+    setting = int (np.unique(props.setting))
+    vary    = int (np.unique(props.vary))
+    rep     = int (np.unique(props.rep))
     
     ### Get tau @(setting,vary,rep) in props and koff0 @(setting,:,:) in solution
     koff = float(sol.loc[sol.setting==setting,'koff'] )                      
@@ -376,18 +384,18 @@ def get_levels(props,locs,sol):
 
     ### Group properties @(setting,vary,rep) in props
     groups  = props.group.values 
-    eps     = eps_func(props.B_ck.values,koff,tau)                                          # changed to B_ck!                            
+    eps     = eps_func(props[B_field].values,koff,tau)                     
     nlocs   = np.round( ( props.n_locs * props.M ).values ).astype(int)
     
     ### Query locs for groups in props @(setting,vary,rep)
     select_subset = (locs.setting == setting) & (locs.vary == vary) & (locs.rep == rep)
-    locs_sub = locs.loc[select_subset,['group','photons_ck']]                               # changed to photons_ck!                   
+    locs_sub = locs.loc[select_subset,['group',photons_field]]                   
     locs_sub = locs_sub.query('group in @groups')
 
 
     ### Transform photons to imager levels
     norm     = [eps[g] for g in range(len(groups)) for i in range(nlocs[g])]
-    levels   = locs_sub.photons_ck.values/norm                                              # changed to photons_ck!  
+    levels   = locs_sub[photons_field].values/norm
 
     
     ### Create normalized histogram of levels of fixed bin width

@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import glob
 import importlib
 import re
+import lbfcs.solveseries as solve
 
 #%%
 def convert_sol(sol,exp):
@@ -27,14 +28,14 @@ def compare_old(obs,sol,exp):
     
     x = obs.vary.values
     xlim = [0,max(x)+0.2*max(x)]
-    x_ref = np.linspace(xlim[0],xlim[1],100)
+    x_ref = np.linspace(xlim[0]+0.1,xlim[1],100)
     
     koff,kon,N = convert_sol(sol,exp)[:-2]
     c          = x_ref*1e-12
     
-    tau     = 1 /(koff+kon*c)
-    Ainv    = (N*kon*c)/koff
-    taudinv = kon*c*1.3
+    tau     = solve.tau_func(koff,kon*c,0)
+    Ainv    = 1/solve.A_func(koff,kon*c,N,0)
+    taudinv = 1/solve.taud_func(kon*c,N,0)
     
     def plotter(x,field,convert,ref):
         y = obs[field]*convert

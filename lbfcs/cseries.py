@@ -126,7 +126,7 @@ def _fit(df,df_stats):
     #### Assign number of docking sites to df_stats
     for expID in df_stats.index:
         c=df_stats.loc[expID,('conc','')]*1e-12 # Concentration [M]
-        df.loc[expID,'N']=(koff/(kon*c))*(1./df.loc[expID,'A'].values)
+        df.loc[expID,'N']=(koff/(kon*c))*(1./df.loc[expID,'A_lin'].values)
         df_stats.loc[expID,('N','50%')]=df.loc[expID,'N'].median()
         df_stats.loc[expID,('N','25%')]=np.percentile(df.loc[expID,'N'],25)
         df_stats.loc[expID,('N','75%')]=np.percentile(df.loc[expID,'N'],75)
@@ -152,7 +152,7 @@ def _plot(df_stats,df_fit):
       
     ###############################################################  1/fit_taud vs conc
     ax3=f.add_subplot(313)
-    ax3=_tau_d_onax(ax3,df_stats,df_fit,color='b')
+    ax3=_tau_d_onax(ax3,df_stats,df_fit,color='darkgrey')
     
     return [ax1,ax2,ax3]
     
@@ -179,7 +179,7 @@ def _tau_onax(ax,df_stats,df_fit,color='red',label_data='data',label_fit='fit'):
     x,y,yerr,xfit,yfit=_prep_tau(df_stats,df_fit)
     
     #### Plot data
-    ax.errorbar(x,y,yerr=yerr,fmt='o',label=label_data,c=color)
+    ax.errorbar(x,y,yerr=yerr,fmt='o',label=label_data,c=color,mfc=color,mec='k')
     ax.plot(xfit,yfit,'-',label=label_fit,c=color,lw=2)
     
     ax.set_xlim(0,max(x)+0.2*max(x))
@@ -214,7 +214,7 @@ def _A_onax(ax,df_stats,df_fit,color='red',label_data='data',label_fit='fit'):
     x,y,yerr,xfit,yfit=_prep_A(df_stats,df_fit)
     
     #### Plot data
-    ax.errorbar(x,y,yerr=yerr,fmt='o',label=label_data,c=color)
+    ax.errorbar(x,y,yerr=yerr,fmt='o',label=label_data,c=color,mfc=color,mec='k')
     ax.plot(xfit,yfit,'-',label=label_fit,c=color,lw=2)
     
     ax.set_xlim(0,max(x)+0.2*max(x))
@@ -249,7 +249,7 @@ def _tau_d_onax(ax,df_stats,df_fit,color='red',label_data='data',label_fit='fit'
     x,y,yerr,xfit,yfit=_prep_tau_d(df_stats,df_fit)
     
     #### Plot data
-    ax.errorbar(x,y,yerr=yerr,fmt='o',label=label_data,c=color)
+    ax.errorbar(x,y,yerr=yerr,fmt='o',label=label_data,c=color,mfc=color,mec='k')
     ax.plot(xfit,yfit,'-',label=label_fit,c=color,lw=2)
     
     ax.set_xlim(0,max(x)+0.2*max(x))

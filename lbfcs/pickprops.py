@@ -526,7 +526,7 @@ def main(locs,info,path,conditions,**params):
     locs_props = locs_props.astype(np.float32)
     locs_props = locs_props.astype({'group':np.uint16,
                                     'setting':np.uint16,
-                                    'vary':np.uint16,
+                                    'vary':np.uint32,
                                     'M':np.uint16,
                                     })
     
@@ -537,7 +537,7 @@ def main(locs,info,path,conditions,**params):
     locs = locs.astype({'frame':np.uint16,
                         'group':np.uint16,
                         'setting':np.uint16,
-                        'vary':np.uint16,
+                        'vary':np.uint32,
                         'M':np.uint16,
                         })
     

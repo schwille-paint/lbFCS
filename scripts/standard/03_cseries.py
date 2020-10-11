@@ -24,17 +24,37 @@ savedir=''
 savename=os.path.splitext(os.path.basename(sys.argv[0]))[0]
 
 ############################################################## Define data
+
+############## Old T=21 series
+# dir_names=[]
+# dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-30_SDS_T21/id114_5nM_p35uW_T21_1'])
+# dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-30_SDS_T21/id114_10nM_p35uW_T21_1'])
+# # dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-30_SDS_T21/id114_20nM_p35uW_T21_1'])
+# dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-30_SDS_T21/id114_20nM_p35uW_T21_2'])
+
+# file_names=[]
+# file_names.extend(['id114_5nM_p35uW_T21_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
+# file_names.extend(['id114_10nM_p35uW_T21_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
+# # file_names.extend(['id114_20nM_p35uW_T21_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
+# file_names.extend(['id114_20nM_p35uW_T21_2_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
+
+############## New T=21 series
+# dir_names=[]
+# dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-10-01_SDS_2-pt-cseries/05_SDS_5nM_p038uW_1'])
+# dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-10-01_SDS_2-pt-cseries/06_SDS_20nM_p038uW_1'])
+
+# file_names=[]
+# file_names.extend(['05_SDS_5nM_p038uW_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
+# file_names.extend(['06_SDS_20nM_p038uW_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
+
+############## T=21 3xCTC
 dir_names=[]
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-30_SDS_T21/id114_5nM_p35uW_T21_1'])
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-30_SDS_T21/id114_10nM_p35uW_T21_1'])
-# dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-30_SDS_T21/id114_20nM_p35uW_T21_1'])
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-30_SDS_T21/id114_20nM_p35uW_T21_2'])
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-10-01_SDS_2-pt-cseries/07_N1-5xCTC_5nM_p038uW_1'])
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-10-01_SDS_2-pt-cseries/08_N1-5xCTC_20nM_p038uW_1'])
 
 file_names=[]
-file_names.extend(['id114_5nM_p35uW_T21_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
-file_names.extend(['id114_10nM_p35uW_T21_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
-# file_names.extend(['id114_20nM_p35uW_T21_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
-file_names.extend(['id114_20nM_p35uW_T21_2_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
+file_names.extend(['07_N1-5xCTC_5nM_p038uW_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
+file_names.extend(['08_N1-5xCTC_20nM_p038uW_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
 
 ############################################################## Read in data
 #### Create list of paths
@@ -42,9 +62,10 @@ path=[os.path.join(dir_names[i],file_names[i]) for i in range(0,len(file_names))
 #### Read in locs of path
 locs_props=pd.concat([io.load_locs(p)[0] for p in path],keys=range(len(file_names)),names=['expID'])
 X=locs_props.copy()
-X=X.reset_index(level=['expID'])
+
 
 ############################################################## Filter
+X=X.reset_index(level=['expID'])
 X=X.groupby('expID').apply(cseries._filter)
 X=X.drop(columns=['expID'])
 
@@ -73,12 +94,12 @@ print('qPAINT')
 print('    kon  = %.2e'%(X_fit.loc['qpaint','popt0']))
 
 #### Plot certain distribtions
-field='N'
+field='n_locs'
 subset=0 # Certain measurement
-subset=X.vary>1 # Boolean subset, e.g. imager concentration > 10nM
+# subset=X.vary>1 # Boolean subset, e.g. imager concentration > 10nM
 
 bins='fd'
-bins=np.linspace(0,3,50)
+bins=np.linspace(0,1,100)
 
 f=plt.figure(12,figsize=[4,3])
 f.subplots_adjust(bottom=0.2,top=0.95,left=0.2,right=0.95)
