@@ -142,7 +142,7 @@ def create_eqs_koff(x,data,model):
     m = np.shape(data)[1]
     
     ### Define weights
-    w = np.array([1, 1, 1, 1, 1, 1]) # Experimental data
+    w = np.array([2, 1, 2, 1, 1, 1]) # Experimental data
     
     system = np.array([0])
     for i in range(n):
@@ -181,7 +181,7 @@ def create_eqs_konc(x,data,model):
     m = np.shape(data)[1]
     
     ### Define weights
-    w = np.array([1, 1, 1, 1, 1, 1]) # Experimental data
+    w = np.array([1, 1, 1, 1, 1]) # Experimental data
     
     system = np.array([0])
     for i in range(n):
@@ -199,8 +199,9 @@ def create_eqs_konc(x,data,model):
             
             if m > 8: 
                 for k in range(0,10):
-                    if data[j,6+k] >= 5e-2:
-                        eq = ( w[5] / (2e-2) ) * pk_func(k,x[n],x[i],x[n+1],data[j,6+k])
+                    if data[j,6+k] >= 0.1 * np.max(data[j,6:-2]):
+                        eq = ( (data[j,6+k]/np.max(data[j,6:-2]))**0.33 / 2e-2 ) * pk_func(k,x[n],x[i],x[n+1],data[j,6+k])
+                        # eq = ( 1 / 2e-2 ) * pk_func(k,x[n],x[i],x[n+1],data[j,6+k])
                     else:
                         eq = 0
                     system = np.append(system,[eq])
@@ -228,10 +229,10 @@ def solve_eqs_koff(data,model):
     ### Solve system of equations
     xopt = optimize.least_squares(lambda x: create_eqs_koff(x,data,model),
                                   x0,
-                                  # jac='3-point',
+                                  jac='3-point',
                                   method ='trf',
-                                  # loss = 'soft_l1',
-                                  # tr_solver='exact',
+                                  loss = 'soft_l1',
+                                  tr_solver='exact',
                                   )
     x = xopt.x
     success = xopt.success
@@ -484,5 +485,19 @@ def assign_levels(levels,obs):
     
     return obs_sub
 
-
-
+#%%
+def assign_N(df,sol):
+    
+    props = df.copy()
+    conc  = int(np.unique(props.vary))
+    konc_field = 'konc%i'%conc        # Get correct konc in solution 
+    
+    koff = float(sol.koff)
+    konc = float(sol[konc_field])
+    
+    A = props.A_lin.values
+    N = (1/A) * (koff/konc)
+    
+    props = props.assign(N = N)
+    
+    return props
