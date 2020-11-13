@@ -15,16 +15,19 @@ importlib.reload(props)
 
 ############################################################# Which experiment?
 # Experimental setting,  like i.e constant variables like labeling, origami design etc.
-setting = [1]
+setting = [12]*4
 # Controlled varying experimental variable like temperature in C (21,22,23) or concentration in pM (1000, 5000)
-vary    = [10101]
+vary    = [10000,10001,10100,10101]
 
 ############################################# Load raw data
 dir_names=[]
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-11-05_N12_T23_Schueder-Repeat/PCR-02_id45_Pm2-10nM_p40uW_2'])
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-11-04_N12_T23_Buffer-Repeat/20-11-04_FS_L']*4)
 
 file_names=[]
-file_names.extend(['PCR-02_id45_Pm2-10nM_p40uW_2_MMStack_Pos0.ome_locs_render_picked.hdf5'])
+file_names.extend(['id45-01_Pm2-10nM-L_p40uW_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
+file_names.extend(['id45-01_Pm2-10nM-L_p40uW_2_MMStack_Pos0.ome_locs_render_picked.hdf5'])
+file_names.extend(['id45-02_Pm2-10nM-L_p40uW_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
+file_names.extend(['id45-02_Pm2-10nM-L_p40uW_2_MMStack_Pos0.ome_locs_render_picked.hdf5'])
 
 
 ############################################ Set parameters 

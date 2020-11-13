@@ -168,7 +168,7 @@ def obs_relresidual(obs,obs_ref,exclude = 'taud|events'):
     return y,y0,delta
 
 #%%
-def show_levels(levels):
+def show_levels(levels,logscale=True):
     
     df_group = levels.groupby(['setting','vary','rep'])
     groups = list(df_group.groups)
@@ -200,7 +200,7 @@ def show_levels(levels):
         ax.set_xticks([1,2,3,4,5])
         
         ax.set_ylim(0.4,1e2)
-        ax.set_yscale('log')
+        if logscale: ax.set_yscale('log')
         if i+1 in [1]: ax.set_yticks([1,10,100]);ax.set_ylabel(r'[%]')
         else: ax.set_yticks([])
         

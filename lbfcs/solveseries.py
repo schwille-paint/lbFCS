@@ -113,15 +113,17 @@ def binom_array(N,k):
     try:
         c = np.zeros(len(N))
         for i,n in enumerate(N):
-            if np.floor(n) >=k:
+            if np.ceil(n) >=k:
                 c[i] = binom(n,k)
             else:
                 c[i] = 0
+                # c[i] = binom(n,k)
     except:
-        if np.floor(N) >=k:
+        if np.ceil(N) >=k:
             c = binom(N,k)
         else:
             c = 1e-10
+            # c = binom(N,k)
     return c
 
 ###
@@ -195,7 +197,7 @@ def create_eqs_konc(x,data,model):
     m = np.shape(data)[1]
     
     ### Define weights
-    w = np.array([1, 1, 1, 1, 1, 1]) # Experimental data
+    w = np.array([1, 2, 2, 1, 1, 1]) # Experimental data
     
     system = np.array([0])
     for i in range(n):
@@ -342,7 +344,7 @@ def combine_solutions(df):
     s_out = pd.Series(index = cols + [c+'_std' for c in cols])
     
     for c in cols:
-        s_out[c]        = np.nanmean(df[c])
+        s_out[c]        = np.nanmedian(df[c])
         s_out[c+'_std'] = np.nanstd(df[c])
 
     return s_out
