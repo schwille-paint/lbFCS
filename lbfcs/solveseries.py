@@ -13,6 +13,8 @@ def prefilter(df_in):
     def it_medrange(df,field,ratio):
         for i in range(3):
             med    = np.median(df[field].values)
+            if field == 'frame':
+                med = np.unique(df.M)[0]/2
             istrue = (df[field] > ((1/ratio[0])*med)) & (df[field] < (ratio[1]*med))
             df     = df[istrue]
         return df
@@ -23,14 +25,14 @@ def prefilter(df_in):
     df = df[np.all(np.isfinite(df[obs]),axis=1)]           # Remove NaNs from all observables
     df = df[(np.abs(df.tau_lin-df.tau)/df.tau_lin) < 0.2]  # Deviation between two ac-fitting modes should be small
     
-    # df = it_medrange(df,'frame'  ,[2,2])
-    # df = it_medrange(df,'std_frame'  ,[2,100])
+    df = it_medrange(df,'frame'  ,[2,2])
+    df = it_medrange(df,'std_frame'  ,[2,100])
     
+    df = it_medrange(df,'tau_lin'  ,[100,2])
     df = it_medrange(df,'tau_lin'  ,[2,2])
-    df = it_medrange(df,'A_lin'    ,[100,5])                          
+    
+    df = it_medrange(df,'A_lin'    ,[2,2])                          
     df = it_medrange(df,'n_locs'   ,[5,5])
-    df = it_medrange(df,'tau_d'    ,[100,5])
-    df = it_medrange(df,'n_events' ,[5,5])
     
     return df
 
@@ -82,17 +84,23 @@ def prep_data(df):
 #%%
 ### Analytic expressions for observables
 
+###
 def tau_func(koff,konc,tau_meas): return 1 / (koff+konc) - tau_meas
 
+###
 def A_func(koff,konc,N,A_meas): return koff / (konc*N) - A_meas
 
+###
 def occ_func(koff,konc,N,occ_meas):
     p   = ( 1/koff + 1 ) / ( 1/koff + 1/konc )
     occ = 1 - np.abs(1-p)**N
     occ = occ - occ_meas
     return occ
 
+###
 def taud_func(konc,N,taud_meas): return 1/(N*konc*1) - taud_meas
+
+###
 def events_func(frames,ignore,koff,konc,N,events_meas):
     p       = ( 1/koff + 1 ) / ( 1/koff + 1/konc )   # Probability of bound imager
     darktot = np.abs(1-p)**N * frames                # Expected sum of dark times
@@ -100,16 +108,23 @@ def events_func(frames,ignore,koff,konc,N,events_meas):
     events  = darktot / (taud + ignore +.5)           # Expected number of events
     return events - events_meas
 
+###
 def binom_array(N,k):
     try:
         c = np.zeros(len(N))
         for i,n in enumerate(N):
-            c[i] = binom(n,k)           
+            if np.floor(n) >=k:
+                c[i] = binom(n,k)
+            else:
+                c[i] = 0
     except:
-        c = binom(N,k)
-    
+        if np.floor(N) >=k:
+            c = binom(N,k)
+        else:
+            c = 1e-10
     return c
 
+###
 def pk_func(k_out,koff,konc,N,pks_meas):
     
     ins = [koff,konc,N]
@@ -117,7 +132,6 @@ def pk_func(k_out,koff,konc,N,pks_meas):
     except: n = 1
     
     p = (1/koff+1)/(1/koff+1/konc) # Probability of bound imager
-    
     pks = np.zeros((n,10))
     for i,k in enumerate(range(1,11)):
         pks[:,i] = binom_array(N,k) * (p)**k *(1-p)**(N-k)
@@ -181,18 +195,18 @@ def create_eqs_konc(x,data,model):
     m = np.shape(data)[1]
     
     ### Define weights
-    w = np.array([1, 1, 1, 1, 1]) # Experimental data
+    w = np.array([1, 1, 1, 1, 1, 1]) # Experimental data
     
     system = np.array([0])
     for i in range(n):
         vals_idx = np.where(data[:,0]==vals[i])[0]  # Get indices of datapoints belonging to one konc
         
-        for j in vals_idx:
-            eq0 = ( w[0] / (0.02*data[j,1]) ) * tau_func(x[n],x[i],data[j,1])
-            eq1 = ( w[1] / (0.02*data[j,2]) ) * A_func(x[n],x[i],x[n+1],data[j,2])
-            eq2 = ( w[2] / (0.02*data[j,3]) ) * occ_func(x[n],x[i],x[n+1],data[j,3])
-            eq3 = ( w[3] / (0.02*data[j,4]) ) * taud_func(x[i],x[n+1],data[j,4])
-            eq4 = ( w[4] / (0.02*data[j,5]) ) * events_func(data[j,-1],data[j,-2],x[n],x[i],x[n+1],data[j,5])
+        for j in vals_idx:          
+            eq0 = ( w[0] / data[j,1] ) * tau_func(x[n],x[i],data[j,1])
+            eq1 = ( w[1] / data[j,2] ) * A_func(x[n],x[i],x[n+1],data[j,2])
+            eq2 = ( w[2] / data[j,3] ) * occ_func(x[n],x[i],x[n+1],data[j,3])
+            eq3 = ( w[3] / data[j,4] ) * taud_func(x[i],x[n+1],data[j,4])
+            eq4 = ( w[4] / data[j,5] ) * events_func(data[j,-1],data[j,-2],x[n],x[i],x[n+1],data[j,5])
             
             if model=='full': system = np.append(system,[eq0,eq1,eq2,eq3,eq4])
             else: system = np.append(system,[eq0,eq1,eq2])
@@ -200,18 +214,17 @@ def create_eqs_konc(x,data,model):
             if m > 8: 
                 for k in range(0,10):
                     if data[j,6+k] >= 0.1 * np.max(data[j,6:-2]):
-                        eq = ( (data[j,6+k]/np.max(data[j,6:-2]))**0.33 / 2e-2 ) * pk_func(k,x[n],x[i],x[n+1],data[j,6+k])
-                        # eq = ( 1 / 2e-2 ) * pk_func(k,x[n],x[i],x[n+1],data[j,6+k])
-                    else:
-                        eq = 0
-                    system = np.append(system,[eq])
-                    
+                        # eq = ( (data[j,6+k]/np.max(data[j,6:-2]))**0.33 / 2e-2 ) * pk_func(k,x[n],x[i],x[n+1],data[j,6+k])
+                        eq = ( w[5] / data[j,6] )  * pk_func(k,x[n],x[i],x[n+1],data[j,6+k]) 
+                        
+                        system = np.append(system,[eq])
+                        
     return system[1:]
 
 #%%
 def solve_eqs_koff(data,model):
     '''
-    Solve equation system as set-up by ``create_eqsTseries_occ()`` for T-series with given ``data`` as returned by ``prep_Teries()``. 
+    Solve equation system as set-up by ``create_eqs_koff()`` for T-series with given ``data`` as returned by ``prep_data()``. 
     '''
     ### Get estimate for koffs, konc & N
     vals = np.unique(data[:,0])
@@ -220,7 +233,7 @@ def solve_eqs_koff(data,model):
     for i in range(n):
         vals_idx = np.where(data[:,0]==vals[i])  # Get indices of datapoints belonging to one koff
         x0.extend([1/np.mean(data[vals_idx,1])]) # Estimate for koff 
-    x0.extend([10e-3]) # Estimate for konc
+    x0.extend([1e-3]) # Estimate for konc
     x0.extend([4])    # Estimate for N
 
         
@@ -229,10 +242,10 @@ def solve_eqs_koff(data,model):
     ### Solve system of equations
     xopt = optimize.least_squares(lambda x: create_eqs_koff(x,data,model),
                                   x0,
-                                  jac='3-point',
+                                   jac='3-point',
                                   method ='trf',
-                                  loss = 'soft_l1',
-                                  tr_solver='exact',
+                                  # loss = 'soft_l1',
+                                   tr_solver='exact',
                                   )
     x = xopt.x
     success = xopt.success
@@ -255,13 +268,13 @@ def solve_eqs_koff(data,model):
 #%%
 def solve_eqs_konc(data,model):
     '''
-    Solve equation system as set-up by ``create_eqsTseries_occ()`` for T-series with given ``data`` as returned by ``prep_Teries()``. 
+    Solve equation system as set-up by ``create_eqs_konc()`` for c-series with given ``data`` as returned by ``prep_data()``. 
     '''
     ### Get estimate for koffs, konc & N
     vals = np.unique(data[:,0])
     n = len(vals) # Unique concentration points (koncs)
     x0 = []
-    for v in vals: x0.extend([10e6*v*1e-12*0.2]) # Estimate for koncs
+    for v in vals: x0.extend([1e6*v*1e-12*0.2]) # Estimate for koncs
     tau_max = np.max(data[data[:,0]==np.min(vals),1])
     x0.extend([1/tau_max]) # Estimate for koff
     x0.extend([4])    # Estimate for N   
@@ -270,9 +283,11 @@ def solve_eqs_konc(data,model):
     ### Solve system of equations
     xopt = optimize.least_squares(lambda x: create_eqs_konc(x,data,model),
                                   x0,
-                                  # jac='3-point',
+                                   jac='3-point',
                                   method ='trf',
-                                  # tr_solver='exact',
+                                  tr_solver='exact',
+                                  # loss = 'huber',
+                                  # max_nfev=,10
                                   )
     x = xopt.x
     success = xopt.success
@@ -293,7 +308,7 @@ def solve_eqs_konc(data,model):
     return s_opt
 
 #%%'
-def solve_eqs(df,series='konc',model='full'):
+def solve_eqs(df,series='konc',model='else'):
     '''
     Combination of ``prep_data()`` and ``solve_eqs_*()`` to set-up and find solution.
     '''

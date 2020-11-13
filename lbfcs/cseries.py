@@ -4,27 +4,33 @@ import pandas as pd
 import importlib
 
 #%%
-def _filter(df):
+def _filter(df_in):
     
-    df_out=df.copy()
-    df_out=df_out[np.isfinite(df_out.tau_lin)]   # Remove NaNs
+    def it_medrange(df,field,ratio):
+        for i in range(3):
+            med    = np.median(df[field].values)
+            if field == 'frame':
+                med = np.unique(df.M)[0]/2
+            istrue = (df[field] > ((1/ratio[0])*med)) & (df[field] < (ratio[1]*med))
+            df     = df[istrue]
+        return df
     
-    # Old filter criterium
-    df_out = df_out[(np.abs(df_out.tau-df_out.tau_lin)/df_out.tau_lin)<0.2]
+    df = df_in.copy()
+    obs = ['tau_lin','A_lin','n_locs','tau_d','n_events'] 
     
-    for i in range(3): # AC time filter
-        tau = np.median(df_out.tau_lin.values)
-        ratio=2
-        istrue = (df_out.tau_lin > ((1/ratio)*tau)) & (df_out.tau_lin < (ratio*tau))
-        df_out = df_out[istrue]
+    df = df[np.all(np.isfinite(df[obs]),axis=1)]           # Remove NaNs from all observables
+    df = df[(np.abs(df.tau_lin-df.tau)/df.tau_lin) < 0.2]  # Deviation between two ac-fitting modes should be small
     
-    for i in range(3): # AC amplitude filter
-        A = np.median(df_out.A_lin.values)
-        ratio=2
-        istrue = df_out.A_lin < (ratio*A)
-        df_out = df_out[istrue]
+    df = it_medrange(df,'frame'  ,[2,2])
+    df = it_medrange(df,'std_frame'  ,[2,100])
     
-    return df_out
+    df = it_medrange(df,'tau_lin'  ,[100,2])
+    df = it_medrange(df,'tau_lin'  ,[2,2])
+    
+    df = it_medrange(df,'A_lin'    ,[2,2])                          
+    df = it_medrange(df,'n_locs'   ,[5,5])
+    
+    return df
 
 #%%
 def _stats(df,CycleTime):

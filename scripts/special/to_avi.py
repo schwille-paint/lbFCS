@@ -2,7 +2,7 @@
 import numpy as np
 import os
 import matplotlib.pyplot as plt
-import cv2
+# import cv2
 
 import picasso.io as io
 
@@ -56,7 +56,7 @@ draw_centerline(ax,picks,2.5,7)
 
 ax.set_xlim(wlim[0],wlim[1])
 ax.set_ylim(hlim[1],hlim[0])
-plt.savefig(os.path.join(save_dir,'FOV1_GFP.pdf'))
+# plt.savefig(os.path.join(save_dir,'FOV1_GFP.pdf'))
 
 frame=21
 f=plt.figure(2,figsize=[6,6])

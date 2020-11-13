@@ -24,37 +24,18 @@ savedir=''
 savename=os.path.splitext(os.path.basename(sys.argv[0]))[0]
 
 ############################################################## Define data
-
-############## Old T=21 series
-# dir_names=[]
-# dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-30_SDS_T21/id114_5nM_p35uW_T21_1'])
-# dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-30_SDS_T21/id114_10nM_p35uW_T21_1'])
-# # dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-30_SDS_T21/id114_20nM_p35uW_T21_1'])
-# dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p04.lb-FCS/19-05-30_SDS_T21/id114_20nM_p35uW_T21_2'])
-
-# file_names=[]
-# file_names.extend(['id114_5nM_p35uW_T21_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
-# file_names.extend(['id114_10nM_p35uW_T21_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
-# # file_names.extend(['id114_20nM_p35uW_T21_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
-# file_names.extend(['id114_20nM_p35uW_T21_2_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
-
-############## New T=21 series
-# dir_names=[]
-# dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-10-01_SDS_2-pt-cseries/05_SDS_5nM_p038uW_1'])
-# dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-10-01_SDS_2-pt-cseries/06_SDS_20nM_p038uW_1'])
-
-# file_names=[]
-# file_names.extend(['05_SDS_5nM_p038uW_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
-# file_names.extend(['06_SDS_20nM_p038uW_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
-
-############## T=21 3xCTC
 dir_names=[]
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-10-01_SDS_2-pt-cseries/07_N1-5xCTC_5nM_p038uW_1'])
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-10-01_SDS_2-pt-cseries/08_N1-5xCTC_20nM_p038uW_1'])
-
 file_names=[]
-file_names.extend(['07_N1-5xCTC_5nM_p038uW_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
-file_names.extend(['08_N1-5xCTC_20nM_p038uW_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
+
+############## New Metabion imager @T=23, concentration adjusted!
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-10-30_SDS_T23_Pm2-Meta/id181_Pm2-5nM_p38uW_Plasma_1'])
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-10-30_SDS_T23_Pm2-Meta/id181_Pm2-10nM_p38uW_Plasma_1'])
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-10-30_SDS_T23_Pm2-Meta/id181_Pm2-20nM_p38uW_Plasma_1'])
+
+file_names.extend(['id181_Pm2-5nM_p38uW_Plasma_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
+file_names.extend(['id181_Pm2-10nM_p38uW_Plasma_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
+file_names.extend(['id181_Pm2-20nM_p38uW_Plasma_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
+
 
 ############################################################## Read in data
 #### Create list of paths
@@ -96,7 +77,7 @@ print('    kon  = %.2e'%(X_fit.loc['qpaint','popt0']))
 #### Plot certain distribtions
 field='n_locs'
 subset=0 # Certain measurement
-# subset=X.vary>1 # Boolean subset, e.g. imager concentration > 10nM
+# subset=X.vary>1000 # Boolean subset, e.g. imager concentration > 10nM
 
 bins='fd'
 bins=np.linspace(0,1,100)
@@ -110,3 +91,26 @@ ax.hist(X.loc[subset,field].dropna(),bins=bins,edgecolor='k',color='gray');
 #ax.set_xlim(0,5);
 ax.set_xlabel(field);
 ax.set_ylabel('Counts');
+
+#%%
+# importlib.reload(cseries)
+
+# #### Plot certain distribtions
+# field='n_locs'
+# bins=np.linspace(0,1,100)
+
+# f=plt.figure(13,figsize=[4,3])
+# f.subplots_adjust(bottom=0.2,top=0.95,left=0.2,right=0.95)
+# f.clear()
+# ax=f.add_subplot(111)
+
+
+# subset=0 
+# ax.hist(X.loc[subset,field].dropna(),bins=bins,edgecolor='r',histtype='step',label='new',density=True);
+
+# subset=2 
+# ax.hist(X.loc[subset,field].dropna(),bins=bins,edgecolor='k',histtype='step',label='old',density=True);
+
+# ax.legend()
+# ax.set_xlabel(field);
+# ax.set_ylabel('Counts');

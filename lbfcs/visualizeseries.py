@@ -130,14 +130,14 @@ def obs_relresidual(obs,obs_ref,exclude = 'taud|events'):
     conc  = np.unique(y[:,0]).flatten()  
     
     for i in range(np.shape(delta)[0]): 
-        delta[i,-10:][ y[i,-10:] < 0.1* np.max(y[i,-10:]) ] = np.inf  # Remove Pk values < 5% of maximum Pk since they are not considered in fit
+        delta[i,-10:][ y[i,-10:] < 0.1* np.max(y[i,-10:]) ] = np.inf  # Remove Pk values < 10% of maximum Pk since they are not considered in fit
     
     last_col   = np.sum(np.any(np.isfinite(delta),axis=0))+1  # Up to which column do we expect valid data?
     cols_valid = cols[1:last_col]
     
     ## Plotting specs
     colors = plt.get_cmap('magma')
-    colors = [colors(i) for i in np.linspace(0.1,0.9,5)]
+    colors = [colors(i) for i in np.linspace(0.1,0.9,8)]
 
     f=plt.figure(12,figsize=[6,3])
     f.subplots_adjust(bottom=0.3,top=0.85,left=0.15,right=0.95,hspace=0)
@@ -159,7 +159,7 @@ def obs_relresidual(obs,obs_ref,exclude = 'taud|events'):
     
     ax.axhline(0,lw=1,ls='--',c='k')
     
-    ax.legend(loc='upper left', bbox_to_anchor = (0.08,1.2), ncol=4)
+    ax.legend(loc='upper left', bbox_to_anchor = (-0.1,1.3), ncol=3,fontsize=10)
     ax.set_xticks(range(len(cols_valid)))
     ax.set_xticklabels(cols_valid,rotation=60)
     ax.set_ylabel(r'$\Delta_{rel}$ [%]')
@@ -180,7 +180,10 @@ def show_levels(levels):
     for i,g in enumerate(groups):
         xdata,ydata,p =solve.fit_levels(df_group.get_group(g))[:-1]
         yfit = solve.gauss_comb(xdata,p)
-        ax=f.add_subplot(1,4,i+1)
+        
+        if len(groups)>5: ax=f.add_subplot(1,len(groups),i+1)
+        else: ax=f.add_subplot(1,5,i+1)
+        
         ax.fill_between(xdata,
                         np.zeros(len(xdata)),
                         ydata,
@@ -198,7 +201,7 @@ def show_levels(levels):
         
         ax.set_ylim(0.4,1e2)
         ax.set_yscale('log')
-        if i+1 in [1,6]: ax.set_yticks([1,10,100]);ax.set_ylabel(r'[%]')
+        if i+1 in [1]: ax.set_yticks([1,10,100]);ax.set_ylabel(r'[%]')
         else: ax.set_yticks([])
         
 #%%
