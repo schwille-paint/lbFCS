@@ -27,6 +27,7 @@ def _filter(df_in):
     df = it_medrange(df,'tau_lin'  ,[100,2])
     df = it_medrange(df,'tau_lin'  ,[2,2])
     
+    df = it_medrange(df,'A_lin'    ,[100,2]) 
     df = it_medrange(df,'A_lin'    ,[2,2])                          
     df = it_medrange(df,'n_locs'   ,[5,5])
     
@@ -65,11 +66,10 @@ def _stats(df,CycleTime):
     df_stats.loc[:,(slice(None),'std')]=df_stats.loc[:,(slice(None),'std')].values/2
     
     ##### Add number of groups used for generation of stats
-    df_stats.loc[:,'groups']=df.groupby('expID').size()
+    df_stats = df_stats.assign(groups = df.groupby('expID').size())
     
-    ##### Add imager concentration
-    df_stats.loc[:,'c']=df.groupby('expID').apply(lambda df: df.vary.mean()).values
-    df_stats.rename(columns={'c':'conc'},inplace=True)
+    # ##### Add imager concentration
+    df_stats = df_stats.assign(conc = df.groupby('expID').apply(lambda df: df.vary.mean()).values )
     
     return df_stats
 

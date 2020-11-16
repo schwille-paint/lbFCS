@@ -2,13 +2,16 @@ import numpy as np
 import pandas as pd
 import numba
 import time
+from tqdm import tqdm
 
 import picasso_addon.io as addon_io
+import picasso_addon.autopick as autopick
 
 LOCS_DTYPE = [
     ('frame', 'u4'),
     ('x', 'f4'),
     ('y', 'f4'),
+    ('imagers', 'f4'),
     ('photons', 'f4'),
     ('photons_ck', 'f4'),
     ('sx', 'f4'),
@@ -96,7 +99,7 @@ def generate_trace(M,CycleTime,N,koff,kon,c,factor=10):
     return traceN
 
 #%%
-def generate_locs(savepath,reps,M,CycleTime,N,koff,kon,c,factor=10):
+def generate_locs(savepath,reps,M,CycleTime,N,koff,kon,c,eps,noise_ratio,factor=10):
     
     ### Print statement
     print('%ix simulations of:'%reps)
@@ -106,6 +109,8 @@ def generate_locs(savepath,reps,M,CycleTime,N,koff,kon,c,factor=10):
     print('koff: %.1e [1/s]'%koff)
     print('kon:  %.1e [1/Ms]'%kon)
     print('conc: %.1e [M]'%c)
+    print('eps: %.0f [ ]'%eps)
+    print('noise_ratio: %.2f [ ]'%noise_ratio)
     
     t0=time.time()
     ### Checks
@@ -126,7 +131,7 @@ def generate_locs(savepath,reps,M,CycleTime,N,koff,kon,c,factor=10):
         start=r*M
         end=(r+1)*M
         locs['frame'][start:end]=frames
-        locs['photons'][start:end]=trace  
+        locs['imagers'][start:end]=trace  
         locs['group'][start:end]=r 
     
     ### Assign input parameters
@@ -137,15 +142,21 @@ def generate_locs(savepath,reps,M,CycleTime,N,koff,kon,c,factor=10):
     locs['kon']=kon
     locs['conc']=c
     
-    ### Remove zeros in photons
-    locs=locs[locs['photons']>0]
+    ### Remove zeros in imager levels
+    locs=locs[locs['imagers']>0]
     
-    ### Add photon noise to photons_ck
-    locs['photons_ck']=locs['photons'] # Copy
+    ### Add photon noise to photons
+    locs['photons'] = np.random.poisson(locs['imagers']*eps) + np.random.normal(0,np.sqrt(noise_ratio*eps),len(locs))
     
     ### Convert 
     locs=pd.DataFrame(locs)
     
+    ###
+    print('Applying Chung-Kennedy filter ...')
+    tqdm.pandas()
+    locs = locs.groupby('group').progress_apply(lambda df: df.assign( photons_ck = autopick.ck_nlf(df.photons.values).astype(np.float32) ) )
+    
+    ###
     print('Total time: %.2f [s]'%(time.time()-t0))
     print()
     
@@ -158,7 +169,10 @@ def generate_locs(savepath,reps,M,CycleTime,N,koff,kon,c,factor=10):
            'koff':koff,
            'kon':kon,
            'conc':c,
+           'eps':eps,
+           'noise_ratio': noise_ratio,
            }]
+    
     addon_io.save_locs(savepath,
                        locs,
                        info,

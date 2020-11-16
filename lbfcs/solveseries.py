@@ -31,7 +31,9 @@ def prefilter(df_in):
     df = it_medrange(df,'tau_lin'  ,[100,2])
     df = it_medrange(df,'tau_lin'  ,[2,2])
     
-    df = it_medrange(df,'A_lin'    ,[2,2])                          
+    df = it_medrange(df,'A_lin'  ,[100,2])
+    df = it_medrange(df,'A_lin'    ,[2,2])
+                     
     df = it_medrange(df,'n_locs'   ,[5,5])
     
     return df
@@ -440,7 +442,7 @@ def gauss_comb(x,p):
     
     for i,l in enumerate(range(1,11)):
         y += gauss_func(x,p[i], l*(1+p[-1]), p[-2] * l**0.5)
-    
+
     return y
 
 #%%
@@ -474,8 +476,8 @@ def fit_levels(levels):
     p[:10] = np.abs(p[:10]) # Only positive amplitudes allowed
     p[-2] = np.abs(p[-2])   # Only positive standard deviation allowed
     
-    ### Caluclate area under individual gaussians
-    area = np.sqrt(2*np.pi) * p[:10] * p[10:-1] * np.arange(1,11)**0.5
+    ### Calculate area under individual gaussians
+    area = np.sqrt(2*np.pi) * p[:10] * p[10:-1] * np.arange(1,11)**0.5  
     area *= (1/np.sum(area))
     
     return xdata, ydata, p , area
