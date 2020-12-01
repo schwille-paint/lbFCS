@@ -39,7 +39,7 @@ def prefilter(df_in):
     return df
 
 #%%
-def bootstrap_props(df,parts=10,samples=500): 
+def bootstrap_props(df,parts=20,samples=500): 
     '''
     Bootstraping of props, i.e. result is DataFrame splitted into ``parts`` containing random samples ``samples``
 
@@ -139,7 +139,7 @@ def pk_func(k_out,koff,konc,N,pks_meas):
     pks = np.zeros((n,10))
     for i,k in enumerate(range(1,11)):
         pks[:,i] = binom_array(N,k) * (p)**k *(1-p)**(N-k)
-    
+
     # Normalize
     norm = np.sum(pks,axis=1).reshape(n,1)
     norm = np.repeat(norm,10,axis=1)
@@ -419,7 +419,7 @@ def get_levels(props,locs,sol,filtered=True):
 
     
     ### Create normalized histogram of levels of fixed bin width
-    bin_width = 0.1 
+    bin_width = 0.05
     ydata,xdata = np.histogram(levels,
                                 bins=np.arange(bin_width/2,11+bin_width,bin_width),
                                 weights=100*np.ones(len(levels))/len(levels))
@@ -463,7 +463,7 @@ def fit_levels(levels):
     for i,l in enumerate(range(1,11)): a[i] = ydata[np.abs(xdata-l) < bin_width/2]
     c = np.ones(1) * 0.25
     
-    p0 = np.concatenate([a,c,[1e-2]])
+    p0 = np.concatenate([a,c,[-1e-2]])
     
     ### Fit
     out = optimize.least_squares(lambda p: gauss_comb(xdata,p) - ydata,

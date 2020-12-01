@@ -199,9 +199,9 @@ def show_levels(levels,logscale=True):
         ax.set_xlim(0.2,5.8)
         ax.set_xticks([1,2,3,4,5])
         
-        ax.set_ylim(0.4,1e2)
+        ax.set_ylim(0.4,5e1)
         if logscale: ax.set_yscale('log')
-        if i+1 in [1]: ax.set_yticks([1,10,100]);ax.set_ylabel(r'[%]')
+        if i+1 in [1]: ax.set_yticks([1,10]);ax.set_ylabel(r'[%]')
         else: ax.set_yticks([])
         
 #%%
