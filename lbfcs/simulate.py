@@ -158,8 +158,10 @@ def generate_locs(savepath,
         start=r*M
         end=(r+1)*M
         locs['frame'][start:end] = frames
-        locs['x_in'][start:end]  = np.ones(M) * np.random.randint(int(box/2),700-int(box/2))
-        locs['y_in'][start:end]  = np.ones(M) * np.random.randint(int(box/2),700-int(box/2))
+        # locs['x_in'][start:end]  = np.ones(M) * np.random.randint(int(box/2),700-int(box/2))
+        # locs['y_in'][start:end]  = np.ones(M) * np.random.randint(int(box/2),700-int(box/2))
+        locs['x_in'][start:end]  = int(box/2) + np.random.rand(1) * (700 - box)
+        locs['y_in'][start:end]  = int(box/2) + np.random.rand(1) * (700 - box)
         locs['imagers'][start:end] = trace
         locs['group'][start:end] = r 
     
@@ -258,8 +260,8 @@ def generate_spots(locs, box, e_tot, snr, sigma):
     p_spots = np.ones((n_spots,6),dtype = np.float32)
     p_spots[:,0] = e_tot * locs['imagers']              # Assign total e-
     p_spots[:,0] /= 2*np.pi*sigma**2                    # Convert to amplitude
-    p_spots[:,1] = (box-1)/2                                  # Position exactly in center
-    p_spots[:,2] = (box-1)/2                      
+    p_spots[:,1] = (box-1)/2 + locs['y_in'] - np.round(locs['y_in'])
+    p_spots[:,2] = (box-1)/2 + locs['x_in'] - np.round(locs['x_in'])                     
     p_spots[:,3] = sigma                                       # Same width in x and y direction!
     p_spots[:,4] = sigma                                       
     p_spots[:,5] = e_tot / (2*np.pi*sigma**2*snr) # Background = amplitde/snr!
@@ -311,8 +313,8 @@ def fit_spots(locs,box,spots,spots_readvar, use_weight):
             ### Convert fit parameters to final output
             locs_out['photons'] = theta[:,0]
             locs_out['bg'] = theta[:,-1]
-            locs_out['x'] = locs_out['x_in'] + theta[:,1] - int(box/2)
-            locs_out['y'] = locs_out['y_in'] + theta[:,2] - int(box/2)
+            locs_out['x'] = np.round(locs_out['x_in']) + theta[:,1] - int(box/2)
+            locs_out['y'] = np.round(locs_out['y_in']) + theta[:,2] - int(box/2)
             locs_out['sx'] = theta[:,3]
             locs_out['sy'] = theta[:,4]
             

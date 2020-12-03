@@ -10,18 +10,18 @@ plt.style.use('~/lbFCS/styles/paper.mplstyle')
 
 ##################### Parameters
 savepath = '~/bla.hdf5'
-reps = 10
+reps = 100
 M = 10
 CycleTime = 0.2
 
-N = 10
+N = 1
 koff = 0.28
 kon = 6e6
 c = 10e-9
 
 box = 9
-e_tot = 300
-snr = 2.5
+e_tot = 3000
+snr = 10
 sigma = 0.9
 use_weight = True
 
@@ -34,27 +34,24 @@ spots_readnoise = spots[4]
 
 #%%
 ##################### View spots
-idx = 0
-# outlier_crit = (locs_fit['imagers']==1)
-# outliers = np.where(outlier_crit)[0]
-# idx= outliers[idx]
-
-locs_select = locs[idx] # Select spot fit results
+idx = 70 # Select
+locs_select = locs.iloc[idx,:] 
 
 ##################### Print fitted parameters
-print('Photons:      %i (%i)'%(locs_select['photons'],locs_select['imagers']*e_tot))
-print('Background:%i (%i)'%(locs_select['bg'], e_tot/(2*np.pi*sigma**2*snr)))
-print('x:                 %.2f (%.2f)'%(locs_select['x'],locs_select['x_in']))
-print('y:                 %.2f (%.2f)'%(locs_select['y'],locs_select['y_in']))
-print('sx, sy:          %.2f, %.2f (%.2f)'%(locs_select['sx'],locs_select['sy'],sigma))
+print('Photons:        %i (%i)'%(locs_select['photons'],locs_select['imagers']*e_tot))
+print('Background:  %i (%i)'%(locs_select['bg'], e_tot/(2*np.pi*sigma**2*snr)))
+print('x:                   %.2f (%.2f)'%(locs_select['x'],locs_select['x_in']))
+print('y:                   %.2f (%.2f)'%(locs_select['y'],locs_select['y_in']))
+print('sx, sy:            %.2f, %.2f (%.2f)'%(locs_select['sx'],locs_select['sy'],sigma))
 
 ##################### Prepare fitted spot
 i,j = np.meshgrid(np.arange(box), np.arange(box), indexing='ij')
-cs = ['photons','y','x','sy','sx','bg']
-p = np.lib.recfunctions.structured_to_unstructured(locs_select[cs])
-p[0] = p[0]/(2*np.pi*p[3]*p[4])
-p[1] += int(box/2) - locs['y'][idx]
-p[2] += int(box/2) - locs['x'][idx]
+p = np.zeros(6)
+p[0] = locs_select['photons']
+p[0] /= 2 * np.pi * locs_select['sx'] * locs_select['sy']
+p[1] = int(box/2) + locs_select['y'] - np.round(locs_select['y_in'])
+p[2] = int(box/2) + locs_select['x'] - np.round(locs_select['x_in'])
+p[3], p[4], p[5] = locs_select['sy'], locs_select['sx'], locs_select['bg']
 p.shape = (1,6)
 spot_fit = simulate.gauss2D_on_mesh(p, i, j)
 
