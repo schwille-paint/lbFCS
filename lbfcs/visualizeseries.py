@@ -1,14 +1,9 @@
 import os 
-import pandas as pd 
 import numpy as np
 import matplotlib.pyplot as plt
-import glob
-import importlib
 import re
-import traceback
 
 import lbfcs.solveseries as solve
-
 #%%
 def create_savesubpath(save_path,do_save,obs):
     
@@ -130,14 +125,14 @@ def obs_relresidual(obs,obs_ref,exclude = 'taud|events'):
     conc  = np.unique(y[:,0]).flatten()  
     
     for i in range(np.shape(delta)[0]): 
-        delta[i,-10:][ y[i,-10:] < 0.1* np.max(y[i,-10:]) ] = np.inf  # Remove Pk values < 10% of maximum Pk since they are not considered in fit
+        delta[i,-10:][ y[i,-10:] < 1e-2 ] = np.inf  # Remove Pk values < 10% of maximum Pk since they are not considered in fit
     
     last_col   = np.sum(np.any(np.isfinite(delta),axis=0))+1  # Up to which column do we expect valid data?
     cols_valid = cols[1:last_col]
     
     ## Plotting specs
     colors = plt.get_cmap('magma')
-    colors = [colors(i) for i in np.linspace(0.1,0.9,8)]
+    colors = [colors(i) for i in np.linspace(0.1,0.9,len(conc))]
 
     f=plt.figure(12,figsize=[6,3])
     f.subplots_adjust(bottom=0.3,top=0.85,left=0.15,right=0.95,hspace=0)
@@ -163,9 +158,9 @@ def obs_relresidual(obs,obs_ref,exclude = 'taud|events'):
     ax.set_xticks(range(len(cols_valid)))
     ax.set_xticklabels(cols_valid,rotation=60)
     ax.set_ylabel(r'$\Delta_{rel}$ [%]')
-    ax.set_ylim(-15,15)
+    ax.set_ylim(-20,20)
     
-    return y,y0,delta
+    return ax
 
 #%%
 def show_levels(levels,logscale=True):
@@ -199,9 +194,9 @@ def show_levels(levels,logscale=True):
         ax.set_xlim(0.2,5.8)
         ax.set_xticks([1,2,3,4,5])
         
-        ax.set_ylim(0.4,5e1)
+        ax.set_ylim(0.1,5e1)
         if logscale: ax.set_yscale('log')
-        if i+1 in [1]: ax.set_yticks([1,10]);ax.set_ylabel(r'[%]')
+        if i+1 in [1]: ax.set_yticks([0.1,1,10]);ax.set_ylabel(r'[%]')
         else: ax.set_yticks([])
         
 #%%

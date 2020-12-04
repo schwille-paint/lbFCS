@@ -13,6 +13,7 @@ except ImportError:
     gpufit_available = False
 
 import picasso.gausslq as gausslq
+import picasso.postprocess as postprocess
 import picasso_addon.io as addon_io
 import picasso_addon.localize as localize
 import picasso_addon.autopick as autopick
@@ -38,7 +39,7 @@ LOCS_DTYPE = [
     ('koff', 'f4'),
     ('kon', 'f4'),
     ('conc', 'f4'),
-    ('N', 'u4'),
+    ('N_in', 'u4'),
 #    ('ellipticity', 'f4'),
 #    ('n_id', "u4"),
 #    ('likelihood', 'f4'),
@@ -158,8 +159,6 @@ def generate_locs(savepath,
         start=r*M
         end=(r+1)*M
         locs['frame'][start:end] = frames
-        # locs['x_in'][start:end]  = np.ones(M) * np.random.randint(int(box/2),700-int(box/2))
-        # locs['y_in'][start:end]  = np.ones(M) * np.random.randint(int(box/2),700-int(box/2))
         locs['x_in'][start:end]  = int(box/2) + np.random.rand(1) * (700 - box)
         locs['y_in'][start:end]  = int(box/2) + np.random.rand(1) * (700 - box)
         locs['imagers'][start:end] = trace
@@ -168,7 +167,7 @@ def generate_locs(savepath,
     ### Assign input parameters
     locs['M']=M
     locs['exp']=CycleTime
-    locs['N']=N
+    locs['N_in']=N
     locs['koff']=koff
     locs['kon']=kon
     locs['conc']=c
@@ -186,6 +185,10 @@ def generate_locs(savepath,
     ### Convert to DataFrame
     locs = pd.DataFrame(locs)
     
+    ### Check for any negative values in photon, bg, sx, sy values
+    positives = (locs.photons>0) & (locs.bg>0) & (locs.sx>0) & (locs.sy>0)
+    locs = locs[positives]
+    
     ### Apply photon step filter
     print('Applying Chung-Kennedy filter ...')
     tqdm.pandas()
@@ -197,7 +200,9 @@ def generate_locs(savepath,
     
     ### Saving
     print('Saving ...')
-    info=[{'reps':reps,
+    info=[{'Width':700,
+            'Height':700,
+            'reps':reps,
             'Frames':M,
             'exp':CycleTime,
             'N':N,
@@ -317,6 +322,8 @@ def fit_spots(locs,box,spots,spots_readvar, use_weight):
             locs_out['y'] = np.round(locs_out['y_in']) + theta[:,2] - int(box/2)
             locs_out['sx'] = theta[:,3]
             locs_out['sy'] = theta[:,4]
+            locs_out['lpx'] = postprocess.localization_precision(theta[:, 0], theta[:, 3], theta[:, 5], em = False)
+            locs_out['lpy'] = postprocess.localization_precision(theta[:, 0], theta[:, 4], theta[:, 5], em = False)
             
     else:
         print('Only GPU fitting implemented assigning imagers ...')
