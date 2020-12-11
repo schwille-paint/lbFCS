@@ -125,7 +125,7 @@ def obs_relresidual(obs,obs_ref,exclude = 'taud|events'):
     conc  = np.unique(y[:,0]).flatten()  
     
     for i in range(np.shape(delta)[0]): 
-        delta[i,-10:][ y[i,-10:] < 1e-2 ] = np.inf  # Remove Pk values < 10% of maximum Pk since they are not considered in fit
+        delta[i,-10:][ y[i,-10:] < 1e-1 * np.max(y[i,-10:]) ] = np.inf  # Remove Pk values < 10% of maximum Pk since they are not considered in fit
     
     last_col   = np.sum(np.any(np.isfinite(delta),axis=0))+1  # Up to which column do we expect valid data?
     cols_valid = cols[1:last_col]
@@ -191,8 +191,8 @@ def show_levels(levels,logscale=True):
                 )
         
         ax.set_title(int(g[1]),fontsize=11)
-        ax.set_xlim(0.2,5.8)
-        ax.set_xticks([1,2,3,4,5])
+        ax.set_xlim(0,5.8)
+        ax.set_xticks([0,1,2,3,4,5])
         
         ax.set_ylim(0.1,5e1)
         if logscale: ax.set_yscale('log')

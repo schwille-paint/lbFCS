@@ -32,7 +32,7 @@ def prefilter(df_in):
     df = it_medrange(df,'tau_lin'  ,[2,2])
     
     df = it_medrange(df,'A_lin'  ,[100,2])
-    df = it_medrange(df,'A_lin'    ,[5,2])
+    df = it_medrange(df,'A_lin'    ,[2,2])
                      
     df = it_medrange(df,'n_locs'   ,[5,5])
     
@@ -94,13 +94,13 @@ def A_func(koff,konc,N,A_meas): return koff / (konc*N) - A_meas
 
 ###
 def occ_func(koff,konc,N,occ_meas):
-    p   = ( 1/koff + 1 ) / ( 1/koff + 1/konc )
+    p   = ( 1/koff + 1 ) / ( 1/koff + 1/konc ) # Probability of bound imager
     occ = 1 - np.abs(1-p)**N
     occ = occ - occ_meas
     return occ
 
 ###
-def taud_func(konc,N,taud_meas): return 1/(N*konc*1) - taud_meas
+def taud_func(konc,N,taud_meas): return 1/(N*konc) - taud_meas
 
 ###
 def events_func(frames,ignore,koff,konc,N,events_meas):
@@ -135,7 +135,7 @@ def pk_func(k_out,koff,konc,N,pks_meas):
     except: n = 1
     
     # Correction!!!
-    N = N * (1 - (koff))
+    # N = N * (1 - (koff))
     
     p = (1/koff+1)/(1/koff+1/konc) # Probability of bound imager
     pks = np.zeros((n,10))
@@ -143,7 +143,7 @@ def pk_func(k_out,koff,konc,N,pks_meas):
         pks[:,i] = binom_array(N,k) * (p)**k *(1-p)**(N-k)
     
     # Correction!!!
-    pks[:,0]*=(1-koff)
+    # pks[:,0]*=(1-koff)
     
     # Normalize
     norm = np.sum(pks,axis=1).reshape(n,1)
@@ -154,7 +154,7 @@ def pk_func(k_out,koff,konc,N,pks_meas):
     return pks[:,k_out] - pks_meas
 
 #%%
-def create_eqs_konc(x,data,model):
+def create_eqs_konc(x,data):
     '''
     Set-up equation system for varying koncs with given ``data`` as returned by ``prep_data()``. 
     '''
@@ -166,7 +166,7 @@ def create_eqs_konc(x,data,model):
     m = np.shape(data)[1]
     
     ### Define weights
-    w = np.array([3, 1, 3, 1, 1, 1]) * 20 # Experimental data
+    w = np.array([1, 1, 1, 0, 0, 1]) * 100 # Experimental data
     
     system = np.array([0])
     for i in range(n):
@@ -179,19 +179,19 @@ def create_eqs_konc(x,data,model):
             eq3 = ( w[3] / data[j,4] ) * taud_func(x[i],x[n+1],data[j,4])
             eq4 = ( w[4] / data[j,5] ) * events_func(data[j,-1],data[j,-2],x[n],x[i],x[n+1],data[j,5])
             
-            if model=='full': system = np.append(system,[eq0,eq1,eq2,eq3,eq4])
-            else: system = np.append(system,[eq0,eq1,eq2])
-            
+            system = np.append(system,[eq0,eq1,eq2,eq3,eq4])
+
             if m > 8: 
                 for k in range(0,10):
-                    if data[j,6+k] >= 1e-2: #* np.max(data[j,6:-2]):
+                    if data[j,6+k] >= 1e-1* np.max(data[j,6:-2]):
                         eq = ( w[5] / data[j,6+k])  * pk_func(k,x[n],x[i],x[n+1],data[j,6+k])
                         system = np.append(system,[eq])
-                        
+    
+    
     return system[1:]
 
 #%%
-def solve_eqs_konc(data,model):
+def solve_eqs_konc(data):
     '''
     Solve equation system as set-up by ``create_eqs_konc()`` for c-series with given ``data`` as returned by ``prep_data()``. 
     '''
@@ -206,7 +206,7 @@ def solve_eqs_konc(data,model):
     x0 = np.array(x0)
     
     ### Solve system of equations
-    xopt = optimize.least_squares(lambda x: create_eqs_konc(x,data,model),
+    xopt = optimize.least_squares(lambda x: create_eqs_konc(x,data),
                                   x0,
                                   method ='trf',
                                   )
@@ -221,12 +221,12 @@ def solve_eqs_konc(data,model):
     return s_opt
 
 #%%'
-def solve_eqs(df,model='else'):
+def solve_eqs(df):
     '''
     Combination of ``prep_data()`` and ``solve_eqs_konc()`` to set-up and find solution.
     '''
     data = prep_data(df)
-    s_opt = solve_eqs_konc(data,model)
+    s_opt = solve_eqs_konc(data)
     
     return s_opt
 
@@ -293,15 +293,22 @@ def eps_func(B,koff,tau):
     return eps
 
 #%%
-def get_levels(props,locs,sol,filtered=True):
+def get_levels(props,locs,sol,field='raw'):
     
     ### Decide which photon and derived values to use
-    photons_field = 'photons'
-    B_field = 'B_ck'
-    if filtered:
+    if field == 'raw':
+        photons_field = 'photons'
+        B_field = 'B_ck'
+    elif field == 'ck':
         photons_field = 'photons_ck'
         B_field = 'B_ck'
-    
+    elif field == 'ng':
+        photons_field = 'net_gradient'
+        B_field = 'B_ng'
+    else:
+        photons_field = 'photons'
+        B_field = 'B_ck'
+        
     ### Which data?
     setting = int (np.unique(props.setting))
     vary    = int (np.unique(props.vary))
@@ -332,6 +339,8 @@ def get_levels(props,locs,sol,filtered=True):
                                 bins=np.arange(bin_width/2,11+bin_width,bin_width),
                                 weights=100*np.ones(len(levels))/len(levels))
     xdata = xdata[:-1] + bin_width/2 # Adjust bins to center position
+    
+    # ydata[ydata<0.1] = 0
     
     ### Define output
     s_out = pd.Series(ydata,index=xdata)

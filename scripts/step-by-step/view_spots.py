@@ -20,8 +20,8 @@ kon = 6e6
 c = 10e-9
 
 box = 9
-e_tot = 3000
-snr = 10
+e_tot = 300
+snr = 2.5
 sigma = 0.9
 use_weight = True
 
