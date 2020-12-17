@@ -28,13 +28,12 @@ dir_names=[]
 file_names=[]
 
 ############## New Metabion imager @T=23, concentration adjusted!
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-10-30_SDS_T23_Pm2-Meta/id181_Pm2-5nM_p38uW_Plasma_1'])
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-10-30_SDS_T23_Pm2-Meta/id181_Pm2-10nM_p38uW_Plasma_1'])
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-10-30_SDS_T23_Pm2-Meta/id181_Pm2-20nM_p38uW_Plasma_1'])
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-09_N1_T23_ibidi_cseries/20-12-09_FS']*3)
 
-file_names.extend(['id181_Pm2-5nM_p38uW_Plasma_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
-file_names.extend(['id181_Pm2-10nM_p38uW_Plasma_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
-file_names.extend(['id181_Pm2-20nM_p38uW_Plasma_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
+file_names.extend(['ibidi_id181_Pm2-05nM_p40uW_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
+file_names.extend(['ibidi_id181_Pm2-10nM_p40uW_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
+file_names.extend(['ibidi_id181_Pm2-20nM_p40uW_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
+
 
 
 ############################################################## Read in data
