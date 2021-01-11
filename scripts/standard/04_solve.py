@@ -37,10 +37,10 @@ Part 2: Find solutions
 ############################################
 
 ################ Set parameters
-params = {'in_field' : 'vary',
-                   'select_values' : [2500],
-                   'parts' :1000,
-                   'samples' : 1,
+params = {'select_field' : 'vary',
+                   'select_values' : [313,625,1250,2500,2501,5000],
+                   'parts' :20,
+                   'samples' : 500,
                    'weights' : [1,1,1,0,0,1],
                    'exp' : 0.4,
                    'intensity':'raw',
@@ -48,7 +48,7 @@ params = {'in_field' : 'vary',
 
 ################ Filter props&locs @(setting,vary,rep) and set random parts
 props, locs, parts = solve.prefilter_partition(props_init, locs_init,
-                                                                     params['in_field'],
+                                                                     params['select_field'],
                                                                      params['select_values'],
                                                                      parts = params['parts'] ,
                                                                      samples = params['samples'] ,
@@ -74,6 +74,12 @@ obs_part, sol_part_levels, sol_levels = solve.draw_solve(props,
                                                                                         weights = params['weights'],
                                                                                         )
 
+
+
+#%%
+################ Mean observables @(setting,vary,rep,:) & expected observables @ solutions
+obs = solve.combine(obs_part)
+
 #%%
 bins = np.linspace(0,6,60)
 
@@ -82,12 +88,4 @@ f.subplots_adjust(bottom=0.2,top=0.95,left=0.2,right=0.95)
 f.clear()
 ax = f.add_subplot(111)
 ax.hist(sol_part.N,bins=bins,histtype='step',ec='k')
-ax.hist(sol_part_levels.N,bins=bins,histtype='step',ec='r')
-
-#%%
-################ Mean observables @(setting,vary,rep,:) & expected observables @ solutions
-obs, levels, obs_expect = solve.combine(props_part,
-                                                                 obs_part,
-                                                                 levels_part,
-                                                                 [sol,sol_levels],
-                                                                 )
+# ax.hist(sol_part_levels.N,bins=bins,histtype='step',ec='r')

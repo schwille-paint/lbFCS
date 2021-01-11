@@ -17,12 +17,15 @@ tqdm.pandas()
 
 ### Global variables
 PK_COLUMNS = ['p%i'%i for i in range(1,11)]
-OBS_COLUMNS = ['tau','A','occ','taud','events'] + PK_COLUMNS + ['ignore','M']
+
 IMG_BIN_WIDTH = 0.05
 IMG_BINS_RANGE= [IMG_BIN_WIDTH /2,
                                 11 + IMG_BIN_WIDTH/2]
 IMG_BINS = int( (IMG_BINS_RANGE[1] - IMG_BINS_RANGE[0]) / IMG_BIN_WIDTH  )
 IMG_BIN_COLUMNS = np.arange(1,IMG_BINS+1,1).astype(np.uint8)
+
+OBS_COLUMNS = ['tau','A','occ','taud','events'] + PK_COLUMNS + ['ignore','M'] + ['eps','snr']
+SOL_OBS_COLUMNS = ['vary','tau','A','occ','taud','events'] + PK_COLUMNS + ['ignore','M'] 
 
 #%%
 def prefilter_partition(props_in,locs_in, field, select, parts, samples):
@@ -49,13 +52,13 @@ def prefilter_partition(props_in,locs_in, field, select, parts, samples):
 #%%
 def draw_solve(props,parts,exp,weights=[1,1,1,0,0,1]):
     
-    ### Compute ensemble observables for every part, i.e. @ (setting,vary,rep,part)
+    ### Draw: Compute ensemble observables for every part, i.e. @ (setting,vary,rep,part)
     print()
     print('Preparing observables ...')
     obs_parts = parts.groupby(['setting','vary','rep','part']).apply(lambda df: observables_from_part(df,props))
     obs_parts = obs_parts.reset_index(level=['setting','vary','rep','part'])
     
-    ### Find part-wise solution over all vary and rep values, i.e. @(setting,part)
+    ### Solve: Find part-wise solution over all vary and rep values, i.e. @(setting,part)
     print('Finding solution ...')
     sol_parts = obs_parts.groupby(['setting','part']).progress_apply(lambda df: solve_eqs(df,weights))
     sol_parts = sol_parts.reset_index(level=['setting','part'])
@@ -88,23 +91,19 @@ def assign_sol_to_props(props_in, sol, locs, intensity='raw'):
     return props
 
 #%%
-def combine(props_part, obs_part, levels_part,sol_list):
+def combine(obs_part):
     
     ### Combine observables for different parts @(setting,vary,rep)
-    obs = obs_part.groupby(['setting','vary','rep']).apply(lambda df: combine_observables(df,props_part))
+    obs = obs_part.groupby(['setting','vary','rep']).apply(combine_observables)
     obs = obs.reset_index(level=['setting','vary','rep'])
     
-    ### Combine levels for different parts @(setting,vary,rep)
-    levels = levels_part.groupby(['setting','vary','rep']).apply(combine_levels)
-    levels = levels.reset_index(level=['setting','vary','rep'])
-    
-    obs_expect_list = []
-    for sol in sol_list:
-         obs_expect = obs.groupby('setting').apply(lambda df: expected_observables(df,sol))
-         obs_expect = obs_expect.droplevel(['setting'])
-         obs_expect_list.extend([obs_expect])
+    # obs_expect_list = []
+    # for sol in sol_list:
+    #      obs_expect = obs.groupby('setting').apply(lambda df: expected_observables(df,sol))
+    #      obs_expect = obs_expect.droplevel(['setting'])
+    #      obs_expect_list.extend([obs_expect])
          
-    return obs, levels , obs_expect_list 
+    return obs
 
 #%%
 def prefilter_props(df_in):
@@ -206,13 +205,15 @@ def observables_from_part(part,props):
     s_out.taud      = np.nanmedian( df.loc[:,'tau_d'])
     s_out.events    = np.nanmedian( df.loc[:,'n_events'])
     
-    ### Assign  bound imager probabilities
+    ### Assign  bound imager probabilities and eps & snr
     try:
         pks = assign_imagerprob(df)[-1]
         s_out[PK_COLUMNS] = pks
+        s_out[['eps','snr']] = np.nanmedian( df.loc[:,['eps','snr']], axis = 0)
     except:
         s_out[PK_COLUMNS] = np.nan
-     
+        s_out[['eps','snr']] = np.nan
+        
     ### Assign measurement duration and ignore value (only needed for taud and events!!)
     s_out.ignore    = df.loc[:,'ignore'].unique()
     s_out.M         = df.loc[:,'M'].unique()
@@ -225,10 +226,7 @@ def prep_data(df):
     Pepare necesary observables as numpy.array ``data`` for setting and solving equation set.
 
     '''
-    cols = df.columns.to_list()
-    search_str = 'setting|rep|part'
-    cols = [c for c in cols if not bool(re.search(search_str,c))]
-    data = df.loc[:,cols].values
+    data = df.loc[:,SOL_OBS_COLUMNS].values
          
     return data
 
@@ -499,44 +497,6 @@ def assign_imagerprob(df):
     return xdata, ydata, p, pks
 
 #%%
-def combine_observables(obs_part,props_part):
-    
-    setting = int(obs_part.setting.iloc[0])
-    vary  = int(obs_part.vary.iloc[0])
-    rep  = int(obs_part.rep.iloc[0])
-    
-    subset = (props_part.setting==setting) & (props_part.vary==vary) & (props_part.rep==rep)
-    
-    cols = obs_part.columns.to_list()
-    cols = [c for c in cols if not bool(re.search('setting|vary|rep|part',c))]
-    
-    cols_add = ['eps','snr'] 
-    s_out = pd.Series(index = cols + cols_add + [c+'_std' for c in cols] + [c+'_std' for c in cols_add])
-    
-    for c in cols:
-        s_out[c]        = np.nanmean(obs_part[c])
-        s_out[c+'_std'] = np.nanstd(obs_part[c])
-    
-    for c in cols_add:
-        s_out[c] = np.nanmedian(props_part.loc[subset,c])
-        s_out[c+'_std'] = np.nanstd(props_part.loc[subset,c]) 
-    
-    return s_out
-
-#%%
-def combine_levels(levels_part):
-    
-    cols = levels_part.columns.to_list()
-    cols = [c for c in cols if not bool(re.search('setting|vary|rep|part',str(c)))]
-    
-    s_out = pd.Series(index = cols)
-    
-    for c in cols:
-        s_out[c] = np.nanmean(levels_part[c])
-
-    return s_out
-
-#%%
 def combine_solutions(df):
     
     df = df[df.success ==True]
@@ -549,6 +509,14 @@ def combine_solutions(df):
     for c in cols:
         s_out[c]        = np.nanmedian(df[c])
         s_out[c+'_std'] = np.nanstd(df[c])
+
+    return s_out
+
+#%%
+def combine_observables(obs_part):
+    
+    s_out = pd.Series(index = OBS_COLUMNS)
+    s_out[OBS_COLUMNS]  = np.nanmean(obs_part[OBS_COLUMNS], axis = 0)
 
     return s_out
 
