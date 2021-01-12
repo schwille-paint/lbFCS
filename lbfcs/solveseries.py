@@ -91,19 +91,19 @@ def assign_sol_to_props(props_in, sol, locs, intensity='raw'):
     return props
 
 #%%
-def combine(obs_part):
+def combine(obs_part, sol_list):
     
     ### Combine observables for different parts @(setting,vary,rep)
     obs = obs_part.groupby(['setting','vary','rep']).apply(combine_observables)
     obs = obs.reset_index(level=['setting','vary','rep'])
     
-    # obs_expect_list = []
-    # for sol in sol_list:
-    #      obs_expect = obs.groupby('setting').apply(lambda df: expected_observables(df,sol))
-    #      obs_expect = obs_expect.droplevel(['setting'])
-    #      obs_expect_list.extend([obs_expect])
+    obs_expect_list = []
+    for sol in sol_list:
+          obs_expect = obs.groupby('setting').apply(lambda df: expected_observables(df,sol))
+          obs_expect = obs_expect.droplevel(['setting'])
+          obs_expect_list.extend([obs_expect])
          
-    return obs
+    return obs, obs_expect_list
 
 #%%
 def prefilter_props(df_in):
@@ -126,8 +126,8 @@ def prefilter_props(df_in):
     df = df[np.all(np.isfinite(df[obs]),axis=1)]           # Remove NaNs from all observables
     df = df[(np.abs(df.tau_lin-df.tau)/df.tau_lin) < 0.2]  # Deviation between two ac-fitting modes should be small
     
-    df = it_medrange(df,'frame'  ,[2,2])
-    df = it_medrange(df,'std_frame'  ,[2,100])
+    df = it_medrange(df,'frame'  ,[1.3,1.3])
+    df = it_medrange(df,'std_frame'  ,[1.25,100])
     
     df = it_medrange(df,'tau_lin'  ,[100,2])
     df = it_medrange(df,'tau_lin'  ,[2,2])
@@ -207,7 +207,7 @@ def observables_from_part(part,props):
     
     ### Assign  bound imager probabilities and eps & snr
     try:
-        pks = assign_imagerprob(df)[-1]
+        pks = fit_imagerprob(df)[-1]
         s_out[PK_COLUMNS] = pks
         s_out[['eps','snr']] = np.nanmedian( df.loc[:,['eps','snr']], axis = 0)
     except:
@@ -393,7 +393,7 @@ def assign_koff_eps_snr(props_in,sol,intensity='raw'):
     ### Assign snr to props based on eps, bg, sx and sy
     snr = eps # Total photons
     snr /= 2*np.pi*props.sx.values*props.sy.values # Now snr corresponds to amplitude of 2D gaussian fit
-    snr /= props.bg.values # (masimum) signal to noise ratio defined as amplitude/bg
+    snr /= props.bg.values # (maximum) signal to noise ratio defined as amplitude/bg
     props = props.assign(snr = snr)
     
     return props
@@ -453,7 +453,7 @@ def gauss_comb(x,p):
     return y
 
 #%%
-def assign_imagerprob(df):
+def fit_imagerprob(df):
     
     ### Get combined imager histogram for part
     ydata = df[list(IMG_BIN_COLUMNS)].values.astype(np.float32)
@@ -524,7 +524,7 @@ def combine_observables(obs_part):
 def expected_observables(obs,sol):
     df_out = obs.copy()
     
-    setting = int(np.unique(obs.setting.values))
+    setting = obs.iloc[0,:].setting
     select = sol.setting == setting
     
     M      = obs.M.values
@@ -540,8 +540,8 @@ def expected_observables(obs,sol):
     df_out['taud']   = taud_func(koncs,N,0)
     df_out['events'] = events_func(M,ignore,koff,koncs,N,0)
     
-    for k in range(0,10):
-        df_out['p'+('%i'%(k+1)).zfill(2)] = pk_func(k,koff,koncs,N,0)
+    for k, col in enumerate(PK_COLUMNS):
+        df_out[col] = pk_func(k,koff,koncs,N,0)
     
     ### Assign NaNs to columns that are not to be expected
     cols = df_out.columns.to_list()

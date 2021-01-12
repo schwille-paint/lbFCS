@@ -4,28 +4,6 @@ import matplotlib.pyplot as plt
 import re
 
 import lbfcs.solveseries as solve
-#%%
-def create_savesubpath(save_path,do_save,obs):
-    
-    if not os.path.exists(save_path): 
-        print('Not a valid save_path!');print()
-        do_save = False
-        return '', do_save
-    
-    else:
-        setting_name = 'N' + ( '%i'%( np.unique(obs.setting)[0] )).zfill(2) + '_'
-        vary_names   = [( '%i'%(vary) ).zfill(5) for vary in np.unique(obs.vary)]
-        
-        save_subdir  = setting_name
-        for name in vary_names: save_subdir += name + '-'
-        save_subdir = save_subdir[:-1]
-        
-        save_subpath = os.path.join(save_path,save_subdir)
-        
-        try: os.mkdir(save_subpath)
-        except FileExistsError: print('Subdir already exists');print() 
-    
-        return save_subpath, do_save
     
 #%%
 def convert_sol(sol,exp):
@@ -42,6 +20,14 @@ def convert_sol(sol,exp):
     N     = float(sol.N)
     
     return koff,kon,N,kons,cs
+
+#%%
+def print_sol(sol,exp):
+    koff,kon,N,kons,cs = convert_sol(sol,exp)
+    print('koff = %.2e [1/s]'%koff)
+    for i,c in enumerate(cs): print('kon  =  %.1e [1/Ms]@ c=%ipM'%(kons[i],int(c*1e12)))
+    print('N    = %.2f'%N)
+    print()
     
 #%%
 def compare_old(obs,sol,exp):
@@ -56,7 +42,7 @@ def compare_old(obs,sol,exp):
     tau     = solve.tau_func(koff,kon*c,0)
     Ainv    = 1/solve.A_func(koff,kon*c,N,0)
     occ     = solve.occ_func(koff*(exp),kon*(exp)*c,N,0)
-    p01     = solve.pk_func(0,koff*(exp),kon*(exp)*c,N,0)
+    p1     = solve.pk_func(0,koff*(exp),kon*(exp)*c,N,0)
         
     def plotter(x,field,convert,ref):
         y = obs[field]*convert
@@ -106,8 +92,8 @@ def compare_old(obs,sol,exp):
     ax.set_ylabel(r'occ []')
     
     ax = f.add_subplot(224)
-    plotter(x,'p01',1,p01)
-    ax.set_ylabel(r'p01 []')
+    plotter(x,'p1',1,p1)
+    ax.set_ylabel(r'p1 []')
 
 #%%
 def obs_relresidual(obs,obs_ref,exclude = 'taud|events'):
@@ -120,12 +106,9 @@ def obs_relresidual(obs,obs_ref,exclude = 'taud|events'):
     
 
     y     = obs.loc[:,cols].values                            # Observables
-    y0    = obs_ref.loc[:,cols].values                        # Reference observables
-    delta = (y[:,1:]-y0[:,1:]) * (100/y0[:,1:])               # Relative residual
+    y0    = obs_ref.loc[:,cols].values                     # Reference observables
+    delta = (y[:,1:]-y0[:,1:]) * (100/y0[:,1:])          # Relative residual
     conc  = np.unique(y[:,0]).flatten()  
-    
-    for i in range(np.shape(delta)[0]): 
-        delta[i,-10:][ y[i,-10:] < 1e-1 * np.max(y[i,-10:]) ] = np.inf  # Remove Pk values < 10% of maximum Pk since they are not considered in fit
     
     last_col   = np.sum(np.any(np.isfinite(delta),axis=0))+1  # Up to which column do we expect valid data?
     cols_valid = cols[1:last_col]
@@ -154,7 +137,7 @@ def obs_relresidual(obs,obs_ref,exclude = 'taud|events'):
     
     ax.axhline(0,lw=1,ls='--',c='k')
     
-    ax.legend(loc='upper left', bbox_to_anchor = (-0.1,1.3), ncol=3,fontsize=10)
+    ax.legend(loc='upper left', bbox_to_anchor = (-0.0,1.3), ncol=3,fontsize=10)
     ax.set_xticks(range(len(cols_valid)))
     ax.set_xticklabels(cols_valid,rotation=60)
     ax.set_ylabel(r'$\Delta_{rel}$ [%]')
@@ -163,20 +146,29 @@ def obs_relresidual(obs,obs_ref,exclude = 'taud|events'):
     return ax
 
 #%%
-def show_levels(levels,logscale=True):
+def show_levels(props,parts,which_part=0,logscale=True):
     
-    df_group = levels.groupby(['setting','vary','rep'])
-    groups = list(df_group.groups)
+    df_grouped = props.groupby(['setting','vary','rep'])
+    df_groups = list(df_grouped.groups)
     
     f=plt.figure(13,figsize=[8,3])
     f.subplots_adjust(bottom=0.2,top=0.9,left=0.1,right=0.95,hspace=0,wspace=0)
     f.clear()
     
-    for i,g in enumerate(groups):
-        xdata,ydata,p =solve.fit_levels(df_group.get_group(g))[:-1]
+    for i,g in enumerate(df_groups):
+        ### Select part
+        df = df_grouped.get_group(g)
+        setting = df.iloc[0].setting
+        vary = df.iloc[0].vary
+        rep = df.iloc[0].rep
+        subset = (parts.setting == setting) & (parts.vary==vary) & (parts.rep==rep) & (parts.part==which_part) 
+        groups = parts[subset].iloc[0,4:]
+        df = df.query('group in @groups')
+        
+        xdata,ydata,p =solve.fit_imagerprob(df)[:-1]
         yfit = solve.gauss_comb(xdata,p)
         
-        if len(groups)>5: ax=f.add_subplot(1,len(groups),i+1)
+        if len(df_groups)>5: ax=f.add_subplot(1,len(groups),i+1)
         else: ax=f.add_subplot(1,5,i+1)
         
         ax.fill_between(xdata,
@@ -199,10 +191,3 @@ def show_levels(levels,logscale=True):
         if i+1 in [1]: ax.set_yticks([0.1,1,10]);ax.set_ylabel(r'[%]')
         else: ax.set_yticks([])
         
-#%%
-def print_sol(sol,exp):
-    koff,kon,N,kons,cs = convert_sol(sol,exp)
-    print('koff = %.2e [1/s]'%koff)
-    for i,c in enumerate(cs): print('kon  =  %.1e [1/Ms]@ c=%ipM'%(kons[i],int(c*1e12)))
-    print('N    = %.2f'%N)
-    print()
