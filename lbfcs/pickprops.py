@@ -380,7 +380,7 @@ def props_other(df,NoFrames):
     return s_out
 
 #%%
-def get_props(df,NoFrames,ignore,mode='ralf'):
+def combine_props(df,NoFrames,ignore,mode='ralf'):
     ''' 
     Combine outputs of:
         
@@ -406,7 +406,7 @@ def apply_props(df,NoFrames,ignore,mode='ralf'):
     """
     df=df.set_index('group')
     tqdm.pandas() # For progressbar under apply
-    df_props=df.groupby('group').progress_apply(lambda df: get_props(df,NoFrames,ignore,mode))
+    df_props=df.groupby('group').progress_apply(lambda df: combine_props(df,NoFrames,ignore,mode))
 
     return df_props
 
@@ -418,7 +418,7 @@ def apply_props_dask(df,NoFrames,ignore,mode='ralf'):
     """
      
     ########### Define apply_props for dask which will be applied to different partitions of df
-    def apply_props_2part(df,NoFrames,ignore,mode): return df.groupby('group').apply(lambda df: get_props(df,NoFrames,ignore,mode))
+    def apply_props_2part(df,NoFrames,ignore,mode): return df.groupby('group').apply(lambda df: combine_props(df,NoFrames,ignore,mode))
 
     ########## Partinioning and computing
     t0=time.time() # Timing
