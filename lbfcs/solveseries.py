@@ -18,10 +18,11 @@ tqdm.pandas()
 ### Global variables
 PROPS_USEFIT_COLS = ['vary','tau_lin','A_lin','n_locs','tau_d','n_events'] + ['ignore','M']
 
-OBS_ALL_COLS = ['setting','vary','rep','group','tau','A','occ','taud','events'] + ['koff','konc','N','n_points','success'] + ['eps','snr'] + ['ignore','M']
-PROPS_OBS_COLS = ['setting','vary','rep','group','tau_lin','A_lin','n_locs','tau_d','n_events'] + ['ignore','M']
-PROPS_OBS_COLS_NEWNAME = ['setting','vary','rep','group','tau','A','occ','taud','events'] +  ['ignore','M']
+OBSSOL_COLS = ['setting','vary','rep','group','tau','A','occ','taud','events'] + ['koff','konc','N','n_points','success'] + ['B','eps','snr','sx','sy'] + ['ignore','M']
+OBS_COLS = ['setting','vary','rep','group','tau_lin','A_lin','n_locs','tau_d','n_events','B','bg','sx','sy'] + ['ignore','M']
+OBS_COLS_NEWNAME = ['setting','vary','rep','group','tau','A','occ','taud','events','B','snr','sx','sy'] +  ['ignore','M']
 
+OBS_ENSEMBLE_USEFIT_COLS = ['vary','tau','A','occ','taud','events'] + ['ignore','M']
 #%%
 def prefilter(df_in):
     '''
@@ -54,7 +55,7 @@ def prefilter(df_in):
     df = it_medrange(df,'n_locs'   ,[5,5])
     
     return df
-        
+
 #%%
 def prep_data(df):
     '''
@@ -149,15 +150,11 @@ def estimate_unknowns(data):
     return x0,cs,n
     
 #%%
-def solve_eqs(df_in,weights):
+def solve_eqs(data,weights):
     '''
-    Solve equation system as set-up by ``create_eq()`` for c-series.. 
+    Solve equation system as set-up by ``create_eqs()`` for c-series.. 
     '''
-    df = df_in.copy()
     weights = np.array(weights,dtype=np.float32)
-    
-    ### Exctract observables
-    data = prep_data(df)
     
     ### Get estimate x0 and unique concentrations cs and number of unique concentrations n
     x0,cs,n = estimate_unknowns(data)
@@ -171,117 +168,105 @@ def solve_eqs(df_in,weights):
     x = xopt.x
     success = xopt.success
     
+    return x, success, cs, n
+
+#%%
+def eps_func(B,koff,tau):
+    b0 = 0.9973
+    b1 = -0.315
+    eps = B / (koff * (b0*tau + b1) )
+    return eps
+
+#%%
+def snr_func(eps,bg,sx,sy):
+    snr = eps # Total photons
+    snr /= 2*np.pi*sx*sy # Now snr corresponds to amplitude of 2D gaussian fit
+    snr /= bg # (maximum) signal to noise ratio defined as amplitude/bg
+    return snr
+
+#%%
+def obsol(df,weights):
+    '''
+    Create final output for individual observables and solution.
+    '''
+    ### Extract observables
+    data = prep_data(df)
+    
+    ### Solve equation system
+    x, success, cs, n = solve_eqs(data,weights)
+    
     ### Prepare output
+    groups = df.group.values.astype(np.int16) # Group used as index
     obs = pd.DataFrame([],
-                       index = range(len(df)),
-                       columns = OBS_ALL_COLS)
+                       index = groups,
+                       columns = OBSSOL_COLS,
+                       dtype=np.float32)
+    
     ### Assign observables
-    obs[PROPS_OBS_COLS_NEWNAME] = df[PROPS_OBS_COLS].values
+    obs[OBS_COLS_NEWNAME] = df[OBS_COLS].values
     ### Assign solution
     obs.koff = x[n]
     obs.N = x[n+1]
     for i,c in enumerate(cs): obs.loc[obs.vary==c,'konc'] = x[i]
-    obs.n_points = len(data)
-    obs.success = success
+    obs.n_points = len(df)
+    obs.success = int(success)
+    ### Assign photon related observables
+    obs.eps = eps_func(obs.B, obs.koff, obs.tau)
+    obs.snr = snr_func(obs.eps,obs.snr,obs.sx,obs.sy) # At this point bg is assigned to snr!
     
     return obs
 
 #%%
-'''
-Work later on assignment of eps and snr since it is still needed to compare with simulations...
-'''
-# #%%
-# def eps_func(B,koff,tau):
-#     b0 = 0.9973
-#     b1 = -0.315
-#     eps = B / (koff * (b0*tau + b1) )
-#     return eps
-
-# #%%
-# def assign_koff_eps_snr(props_in,sol,intensity='raw'):
+def obs_ensemble(df):
+    '''
+    Prepare ensemble data from obsol of individual groups.
+    '''
+    ### Init
+    s_out = pd.Series(index=OBSSOL_COLS, dtype=np.float32)
     
-#     ### Decide which brightness value to use
-#     if intensity == 'raw':
-#         B_field = 'B_ck'
-#     elif intensity == 'chungkennedy':
-#         B_field = 'B_ck'
-#     elif intensity == 'netgradient':
-#         B_field = 'B_ng'
-#     else:
-#         B_field = 'B_ck'
+    ### Compute ensemble observables
+    for c in OBSSOL_COLS:
+        if c in ['tau','occ']:
+            s_out[c] = np.nanmean(df.loc[:,c])
+        elif c in ['setting','vary','rep','ignore','M']:
+            s_out[c] = df[c].iloc[0]
+        else:
+            s_out[c] = np.nanmedian(df.loc[:,c])
     
-#     ### Get koff from solution @(setting)
-#     setting = props_in.setting.iloc[0]
-#     koff = float(sol.loc[sol.setting==setting,'koff'] )   
+    s_out['group'] = len(df) # Number of groups
     
-#     ### Get mean tau @(setting,vary,rep)
-#     tau = np.nanmean(props_in.tau_lin) 
-#     # tau = props_in.tau_lin.values                  # Testing individual taus!?! 
-    
-#     ### Assign koff to props
-#     props = props_in.assign(koff = koff)
-    
-#     ### Assign eps to props using individual groups brightness but global koff & tau
-#     eps  = eps_func(props[B_field].values,koff,tau)
-#     props = props.assign(eps = eps)
-    
-#     ### Assign snr to props based on eps, bg, sx and sy
-#     snr = eps # Total photons
-#     snr /= 2*np.pi*props.sx.values*props.sy.values # Now snr corresponds to amplitude of 2D gaussian fit
-#     snr /= props.bg.values # (maximum) signal to noise ratio defined as amplitude/bg
-#     props = props.assign(snr = snr)
-    
-#     return props
-
+    return s_out
 
 #%%
-'''
-Work later on ensemble solution with bootstrapping ...
-'''
-# #%%
-# def create_parts(props,N_parts,N_samples): 
-#     '''
-#     Create list of parts. Every part consists of 'N_samples' randomly drawn (repeats within part!) from groups of props. 
+def obsol_ensemble(obsol,weights):
+    '''
+    Create final output for ensemble observables and solution.
+    '''
+    ### For every setting group according to (vary,rep)
+    df = obsol.groupby(['vary','rep']).apply(obs_ensemble)
+    
+    ### Prepare data for fitting of ensemble 
+    data = df.loc[:,OBS_ENSEMBLE_USEFIT_COLS].values.astype(np.float32)
+    
+    ### Solve equation system
+    x, success, cs, n = solve_eqs(data,weights)
+    
+    ### Prepare output
+    setting = df.setting.values
+    obs = pd.DataFrame([],
+                       index = setting,
+                       columns = OBSSOL_COLS,
+                       dtype=np.float32)
+    
+    ### Assign observables
+    obs[OBSSOL_COLS] = df[OBSSOL_COLS].values
+    obs = obs.rename({'group':'groups'})
+    ### Assign solution
+    obs.koff = x[n]
+    obs.N = x[n+1]
+    for i,c in enumerate(cs): obs.loc[obs.vary==c,'konc'] = x[i]
+    obs.n_points = len(df)
+    obs.success = int(success)
+    
+    return obs
 
-#     '''
-    
-#     df_out = pd.DataFrame([],                                         # Prepare output
-#                                          index=range(N_parts),
-#                                          columns=range(N_samples))
-#     df_out.index.name = 'part'
-#     groups = props.group.values                                     # Existing groups in props
-    
-#     for i in range(N_parts):
-#         idx=np.random.randint(0,len(groups),N_samples)    # Draw random samples with possible repetitions
-#         df_out.iloc[i,:] = groups[idx]
-        
-#     return df_out
-
-# #%%
-# def observables_from_part(part,props):
-    
-#     ### Get part in props
-#     setting = part.setting.iloc[0]
-#     vary = part.vary.iloc[0]
-#     rep= part.rep.iloc[0]
-#     groups = part.iloc[0,4:].values
-
-#     subset = (props.setting == setting) & (props.vary==vary) & (props.rep==rep)
-#     df = props[subset]
-#     df = df.query('group in @groups')
-    
-#     ### Prepare observables
-#     s_out = pd.Series(index=OBS_COLUMNS,dtype=np.float32)
-    
-#     ### Assign standard everything except bound imager probabilities
-#     s_out.tau       = np.nanmean(   df.loc[:,'tau_lin'])
-#     s_out.A         = np.nanmedian( df.loc[:,'A_lin'])
-#     s_out.occ       = np.nanmean(   df.loc[:,'n_locs'])
-#     s_out.taud      = np.nanmedian( df.loc[:,'tau_d'])
-#     s_out.events    = np.nanmedian( df.loc[:,'n_events'])
-    
-#     ### Assign measurement duration and ignore value (only needed for taud and events!!)
-#     s_out.ignore    = df.loc[:,'ignore'].unique()
-#     s_out.M         = df.loc[:,'M'].unique()
-    
-#     return s_out
