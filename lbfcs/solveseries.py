@@ -1,28 +1,74 @@
+import sys
+import glob
+import os
+import re
 import numpy as np
 import pandas as pd
-import re
 import numba
-import time
-import warnings
-
-from tqdm import tqdm
-from fast_histogram import histogram1d
-from scipy.special import binom
 import scipy.optimize as optimize
+import warnings
+from tqdm import tqdm
+tqdm.pandas()
 
-import lbfcs.visualizeseries as visualize
+import picasso.io as io
 
 warnings.filterwarnings("ignore")
-tqdm.pandas()
 
 ### Global variables
 PROPS_USEFIT_COLS = ['vary','tau_lin','A_lin','n_locs','tau_d','n_events'] + ['ignore','M']
 
-OBSSOL_COLS = ['setting','vary','rep','group','tau','A','occ','taud','events'] + ['koff','konc','N','n_points','success'] + ['B','eps','snr','sx','sy'] + ['ignore','M']
+OBSSOL_COLS = ['setting','vary','rep','group','tau','A','occ','taud','events'] + ['koff','konc','N','n_points','success'] + ['B','eps','snr','sx','sy'] + ['ignore','M','exp']
 OBS_COLS = ['setting','vary','rep','group','tau_lin','A_lin','n_locs','tau_d','n_events','B','bg','sx','sy'] + ['ignore','M']
 OBS_COLS_NEWNAME = ['setting','vary','rep','group','tau','A','occ','taud','events','B','snr','sx','sy'] +  ['ignore','M']
 
 OBS_ENSEMBLE_USEFIT_COLS = ['vary','tau','A','occ','taud','events'] + ['ignore','M']
+
+OBSOL_TYPE_DICT = {'setting':np.uint16,
+                                   'vary':np.uint16,
+                                   'rep':np.uint8,
+                                   'group':np.uint16,
+                                   'M':np.uint16,
+                                   'ignore':np.uint8,
+                                    'n_points':np.uint8,
+                                    'success':np.uint8,
+                                    'koff':np.float32,
+                                    'konc':np.float32,
+                                    'N':np.float32,
+                                    'exp':np.float32,
+                                    'eps':np.float32,
+                                    'snr':np.float32,
+                                    }
+
+#%%
+def load_props_in_dir(dir_name):
+    '''
+    Load all _props.hdf5 files indirectory and return as combined pandas.DataFrame. Also returns comprehensive list of loaded files
+    '''
+    ### Get sorted list of all paths to props in dir_name
+    paths = sorted( glob.glob( os.path.join( dir_name,'*_props*.hdf5') ) )
+    ### Load files
+    props = pd.concat([pd.DataFrame(io.load_locs(p)[0]) for p in paths],keys=range(len(paths)),names=['rep'])
+    props = props.reset_index(level=['rep'])
+    ### Create comprehensive list of loaded files
+    files = pd.DataFrame([],
+                         index=range(len(paths)),
+                         columns=['setting','vary','rep','file_name'])
+    
+    file_names = [os.path.split(path)[-1] for path in paths]
+    files.loc[:,'file_name'] = file_names
+
+    settings = props.groupby(['rep']).apply(lambda df: df.setting.iloc[0])
+    files.loc[:,'setting'] = settings.values
+    
+    varies = props.groupby(['rep']).apply(lambda df: df.vary.iloc[0])
+    files.loc[:,'vary'] = varies.values
+    
+    files.loc[:,'rep'] = range(len(paths))
+    
+    files = files.sort_values(by=['setting','vary','rep'])
+    
+    return props, files
+
 #%%
 def prefilter(df_in):
     '''
@@ -55,6 +101,20 @@ def prefilter(df_in):
     df = it_medrange(df,'n_locs'   ,[5,5])
     
     return df
+
+#%%
+def exclude_filter(props_init,exclude_rep):
+    '''
+    Exclude repetitions if needed and filter each measurement.
+    '''
+    ### Select subset of props
+    props = props_init.query('rep not in @exclude_rep' )
+    
+    ### Filter props
+    props = props.groupby(['rep']).apply(prefilter)
+    props = props.droplevel( level = ['rep'])
+    
+    return props
 
 #%%
 def prep_data(df):
@@ -187,7 +247,7 @@ def snr_func(eps,bg,sx,sy):
 #%%
 def obsol(df,weights):
     '''
-    Create final output for individual observables and solution.
+    Create final output per group including observables and solution.
     '''
     ### Extract observables
     data = prep_data(df)
@@ -217,6 +277,41 @@ def obsol(df,weights):
     return obs
 
 #%%
+def get_obsol(props, exp, weights, solve_mode):
+    '''
+    Groupby and apply obsol().
+    
+    If mode = single all groups of each measurment are solved individually
+    
+    If mode = series groups with same ids in each measurment are solved as series. 
+    This option makes only sense if:
+        - all measurements were taken from the same FOV
+        - all measurements are aligned to each other
+        - and it was taken care of the group identity, i.e. one origami has same group id in all measurements
+    
+    Exposure (aquisition cycle time) [s] will be assigned for unit conversion.
+    '''
+    if solve_mode == 'single':
+        groupby_cols = ['vary','rep','group']
+    elif solve_mode == 'series':
+        groupby_cols = ['group']
+    else:
+        print('Please define solve_mode in get_obsol(). Execution aborted!')
+        sys.exit()
+    
+    print()
+    df = props.groupby(groupby_cols).progress_apply(lambda df: obsol(df,weights))
+    df = df.droplevel( level = groupby_cols)
+    print()
+    
+    ### Assign exposure
+    df.exp =exp
+    
+    ### Some type conversions
+    df = df.astype(OBSOL_TYPE_DICT)
+    return df
+    
+#%%
 def obs_ensemble(df):
     '''
     Prepare ensemble data from obsol of individual groups.
@@ -226,9 +321,9 @@ def obs_ensemble(df):
     
     ### Compute ensemble observables
     for c in OBSSOL_COLS:
-        if c in ['tau','occ']:
+        if c in ['tau','occ','n_points','success']:
             s_out[c] = np.nanmean(df.loc[:,c])
-        elif c in ['setting','vary','rep','ignore','M']:
+        elif c in ['setting','vary','rep','ignore','M','exp']:
             s_out[c] = df[c].iloc[0]
         else:
             s_out[c] = np.nanmedian(df.loc[:,c])
@@ -236,11 +331,53 @@ def obs_ensemble(df):
     s_out['group'] = len(df) # Number of groups
     
     return s_out
+        
+#%%
+def combine_obsol(obsol_per_group):
+    '''
+    Group obsol by (setting,rep) and get ensemble means and medians.
+    '''
+    df = obsol_per_group.groupby(['setting','vary','rep']).apply(lambda df: obs_ensemble(df))
+    df = df.droplevel( level = ['vary','rep'])
+    df = df.drop(columns = ['setting'])
+    df = df.reset_index()
+    
+    ### Some type conversions
+    df = df.astype(OBSOL_TYPE_DICT)
+    
+    return df
+
+#%%
+def print_solutions(df):
+    df = df.sort_values(by=['setting','vary','rep'])
+    print()
+    print('           ID            |   groups  |   koff [1/s]  |  kon [1/Ms] |     N')
+    for i in range(len(df)):
+        s = df.iloc[i]
+        id_str = '(%s,%s,%s)   '%(str(int(s.setting)).zfill(3),str(int(s.vary)).zfill(5),str(int(s.rep)).zfill(2))
+        groups_str = '   %s     '%str(int(s.group)).zfill(3)
+        koff_str = '  %.2fe-01   '%(s.koff*(1/s.exp)*1e1)
+        kon_str = ' %.2fe+07   '%(s.konc*(1/s.vary)*1e12*(1/s.exp)*1e-7)
+        N_str = ' %.2f '%(s.N)
+        
+        print(id_str, groups_str,koff_str, kon_str,N_str)
+
+
+
+
+
+#%%
+
+##############################
+'''
+Ensemble solving
+'''
+##############################
 
 #%%
 def obsol_ensemble(obsol,weights):
     '''
-    Create final output for ensemble observables and solution.
+    Create final output for ensemble including observables and solution.
     '''
     ### For every setting group according to (vary,rep)
     df = obsol.groupby(['vary','rep']).apply(obs_ensemble)
@@ -270,3 +407,12 @@ def obsol_ensemble(obsol,weights):
     
     return obs
 
+#%%
+def get_obsol_ensemble(obsol_per_group, weights):
+    '''
+    Groupby and apply obsol_ensemble(). For the ensemble solution always complete series for one setting is used.
+    '''
+    df = obsol_per_group.groupby(['setting']).apply(lambda df: obsol_ensemble(df,weights))
+    df = df.droplevel( level = ['setting'])
+    
+    return df
