@@ -11,15 +11,16 @@ from tqdm import tqdm
 tqdm.pandas()
 
 import picasso.io as io
+import picasso_addon.io as addon_io
 
 warnings.filterwarnings("ignore")
 
 ### Global variables
 PROPS_USEFIT_COLS = ['vary','tau_lin','A_lin','n_locs','tau_d','n_events'] + ['ignore','M']
 
-OBSSOL_COLS = ['setting','vary','rep','group','tau','A','occ','taud','events'] + ['koff','konc','N','n_points','success'] + ['B','eps','snr','sx','sy'] + ['ignore','M','exp']
-OBS_COLS = ['setting','vary','rep','group','tau_lin','A_lin','n_locs','tau_d','n_events','B','bg','sx','sy'] + ['ignore','M']
-OBS_COLS_NEWNAME = ['setting','vary','rep','group','tau','A','occ','taud','events','B','snr','sx','sy'] +  ['ignore','M']
+OBSSOL_COLS = ['setting','vary','rep','group','tau','A','occ','taud','events'] + ['koff','konc','N','n_points','success'] + ['B','eps','snr','sx','sy'] + ['ignore','M','exp','date']
+OBS_COLS = ['setting','vary','rep','group','tau_lin','A_lin','n_locs','tau_d','n_events','B','bg','sx','sy'] + ['ignore','M','date']
+OBS_COLS_NEWNAME = ['setting','vary','rep','group','tau','A','occ','taud','events','B','snr','sx','sy'] +  ['ignore','M','date']
 
 OBS_ENSEMBLE_USEFIT_COLS = ['vary','tau','A','occ','taud','events'] + ['ignore','M']
 
@@ -27,17 +28,30 @@ OBSOL_TYPE_DICT = {'setting':np.uint16,
                                    'vary':np.uint16,
                                    'rep':np.uint8,
                                    'group':np.uint16,
+                                   #
+                                   'tau':np.float32,
+                                   'A':np.float32,
+                                   'occ':np.float32,
+                                   'taud':np.float32,
+                                   'events':np.float32,
+                                   #
+                                   'koff':np.float32,
+                                   'konc':np.float32,
+                                   'N':np.float32,
+                                   'n_points':np.uint8,
+                                   'success':np.uint8,
+                                   #
+                                   'B':np.float32,
+                                   'eps':np.float32,
+                                   'snr':np.float32,
+                                   'sx':np.float32,
+                                   'sy':np.float32,
+                                   #
                                    'M':np.uint16,
                                    'ignore':np.uint8,
-                                    'n_points':np.uint8,
-                                    'success':np.uint8,
-                                    'koff':np.float32,
-                                    'konc':np.float32,
-                                    'N':np.float32,
-                                    'exp':np.float32,
-                                    'eps':np.float32,
-                                    'snr':np.float32,
-                                    }
+                                   'exp':np.float32,
+                                   'date':np.uint32,
+                                   }
 
 #%%
 def load_props_in_dir(dir_name):
@@ -49,23 +63,31 @@ def load_props_in_dir(dir_name):
     ### Load files
     props = pd.concat([pd.DataFrame(io.load_locs(p)[0]) for p in paths],keys=range(len(paths)),names=['rep'])
     props = props.reset_index(level=['rep'])
+    ### Load infos and get aquisition dates
+    infos = [io.load_info(p) for p in paths]
+    dates = [info[0]['Micro-Manager Metadata']['Time'] for info in infos] # Get aquisition date
+    dates = [int(date.split(' ')[0].replace('-','')) for date in dates]
+    
     ### Create comprehensive list of loaded files
     files = pd.DataFrame([],
                          index=range(len(paths)),
                          columns=['setting','vary','rep','file_name'])
-    
+    ### Assign file_names
     file_names = [os.path.split(path)[-1] for path in paths]
     files.loc[:,'file_name'] = file_names
-
+    ### Assign setting
     settings = props.groupby(['rep']).apply(lambda df: df.setting.iloc[0])
     files.loc[:,'setting'] = settings.values
-    
+    ### Assign vary
     varies = props.groupby(['rep']).apply(lambda df: df.vary.iloc[0])
     files.loc[:,'vary'] = varies.values
-    
+    ### Assign rep
     files.loc[:,'rep'] = range(len(paths))
     
+    ### Sort file list
     files = files.sort_values(by=['setting','vary','rep'])
+    ### Assign date to props
+    props = props.assign(date = np.min(dates)) # Assign earliest aquisition date of measurement series
     
     return props, files
 
@@ -260,7 +282,8 @@ def obsol(df,weights):
     obs = pd.DataFrame([],
                        index = groups,
                        columns = OBSSOL_COLS,
-                       dtype=np.float32)
+                       dtype = np.float64,
+                       )
     
     ### Assign observables
     obs[OBS_COLS_NEWNAME] = df[OBS_COLS].values
@@ -309,21 +332,25 @@ def get_obsol(props, exp, weights, solve_mode):
     
     ### Some type conversions
     df = df.astype(OBSOL_TYPE_DICT)
+    
     return df
     
 #%%
-def obs_ensemble(df):
+def obs_ensemble(df_in):
     '''
     Prepare ensemble data from obsol of individual groups.
     '''
     ### Init
-    s_out = pd.Series(index=OBSSOL_COLS, dtype=np.float32)
+    s_out = pd.Series(index=OBSSOL_COLS)
+    
+    ### Reduce to groups which could be successfully fitted
+    df = df_in[df_in.success == 1]
     
     ### Compute ensemble observables
     for c in OBSSOL_COLS:
         if c in ['tau','occ','n_points','success']:
             s_out[c] = np.nanmean(df.loc[:,c])
-        elif c in ['setting','vary','rep','ignore','M','exp']:
+        elif c in ['setting','vary','rep','ignore','M','exp','date']:
             s_out[c] = df[c].iloc[0]
         else:
             s_out[c] = np.nanmedian(df.loc[:,c])
@@ -337,8 +364,8 @@ def combine_obsol(obsol_per_group):
     '''
     Group obsol by (setting,rep) and get ensemble means and medians.
     '''
-    df = obsol_per_group.groupby(['setting','vary','rep']).apply(lambda df: obs_ensemble(df))
-    df = df.droplevel( level = ['vary','rep'])
+    df = obsol_per_group.groupby(['date','setting','vary','rep']).apply(lambda df: obs_ensemble(df))
+    df = df.droplevel( level = ['date','vary','rep'])
     df = df.drop(columns = ['setting'])
     df = df.reset_index()
     
@@ -349,23 +376,31 @@ def combine_obsol(obsol_per_group):
 
 #%%
 def print_solutions(df):
-    df = df.sort_values(by=['setting','vary','rep'])
+    df = df.sort_values(by=['date','setting','vary','rep'])
     print()
-    print('           ID            |   groups  |   koff [1/s]  |  kon [1/Ms] |     N')
+    print('     date     |           id            |   groups  |   koff [1/s]  |  kon [1/Ms] |     N')
     for i in range(len(df)):
         s = df.iloc[i]
-        id_str = '(%s,%s,%s)   '%(str(int(s.setting)).zfill(3),str(int(s.vary)).zfill(5),str(int(s.rep)).zfill(2))
-        groups_str = '   %s     '%str(int(s.group)).zfill(3)
+        date = '%s  '%str(int(s.date))
+        id_str = '(%s,%s,%s)  '%(str(int(s.setting)).zfill(3),str(int(s.vary)).zfill(5),str(int(s.rep)).zfill(2))
+        groups_str = '   %s     '%str(int(s.group)).zfill(4)
         koff_str = '  %.2fe-01   '%(s.koff*(1/s.exp)*1e1)
         kon_str = ' %.2fe+07   '%(s.konc*(1/s.vary)*1e12*(1/s.exp)*1e-7)
         N_str = ' %.2f '%(s.N)
         
-        print(id_str, groups_str,koff_str, kon_str,N_str)
+        print(date,id_str, groups_str,koff_str, kon_str,N_str)
 
-
-
-
-
+#%%
+def save_series(files, obs, params):
+    savepath_obs = os.path.join(params['dir_name'],'_obsol.hdf5')
+    savepath_files = os.path.join(params['dir_name'],'_files.csv')
+    
+    addon_io.save_locs(savepath_obs,
+                                   obs,
+                                   [params],
+                                   mode='picasso_compatible')
+    files.to_csv(savepath_files, index=False)
+    
 #%%
 
 ##############################
@@ -373,7 +408,27 @@ def print_solutions(df):
 Ensemble solving
 '''
 ##############################
+#%%
+'''
+In progress: Old method ensemble tau vs. c fitting
+'''
+# def tau_conc_func(x,koff,kon): return 1/(koff+kon*c)
 
+# def estimate_koff_kon(data):
+#     cs = data[:,0]
+    
+#     c_min = np.min(cs)
+#     c_max = np.max(cs)
+#     tau_max = np.max(data[data[:,0]==c_min,1]) # Maximum tau @ lowest concentration
+#     tau_min = np.max(data[data[:,0]==c_max,1]) # Minimum tau @ highest concentration
+    
+#     koff = 1/tau_max
+#     kon = -koff**2 * ((tau_min-tau_max)/(c_min-c_max))
+    
+#     return kon, koff
+    
+# def solve_eqs_old(data):
+        
 #%%
 def obsol_ensemble(obsol,weights):
     '''
@@ -393,7 +448,7 @@ def obsol_ensemble(obsol,weights):
     obs = pd.DataFrame([],
                        index = setting,
                        columns = OBSSOL_COLS,
-                       dtype=np.float32)
+                       dtype=np.float64)
     
     ### Assign observables
     obs[OBSSOL_COLS] = df[OBSSOL_COLS].values
@@ -412,7 +467,9 @@ def get_obsol_ensemble(obsol_per_group, weights):
     '''
     Groupby and apply obsol_ensemble(). For the ensemble solution always complete series for one setting is used.
     '''
-    df = obsol_per_group.groupby(['setting']).apply(lambda df: obsol_ensemble(df,weights))
-    df = df.droplevel( level = ['setting'])
+    df = obsol_per_group.groupby(['date','setting']).apply(lambda df: obsol_ensemble(df,weights))
+    df = df.droplevel( level = ['date','setting'])
+    
+    df = df.astype(OBSOL_TYPE_DICT)
     
     return df
