@@ -247,7 +247,7 @@ def solve_eqs(data,weights):
                                                      method ='trf',
                                                      ftol=1e-4,
                                                      )
-    x = xopt.x
+    x = np.abs(xopt.x)
     success = xopt.success
     
     return x, success, cs, n
@@ -412,23 +412,34 @@ Ensemble solving
 '''
 In progress: Old method ensemble tau vs. c fitting
 '''
-# def tau_conc_func(x,koff,kon): return 1/(koff+kon*c)
+def tau_conc_func(x,koff,kon): return 1/(koff+kon*x)
 
-# def estimate_koff_kon(data):
-#     cs = data[:,0]
+def estimate_koff_kon(data):
+    cs = data[:,0]
     
-#     c_min = np.min(cs)
-#     c_max = np.max(cs)
-#     tau_max = np.max(data[data[:,0]==c_min,1]) # Maximum tau @ lowest concentration
-#     tau_min = np.max(data[data[:,0]==c_max,1]) # Minimum tau @ highest concentration
+    c_min = np.min(cs)
+    c_max = np.max(cs)
+    tau_max = np.max(data[data[:,0]==c_min,1]) # Maximum tau @ lowest concentration
+    tau_min = np.max(data[data[:,0]==c_max,1]) # Minimum tau @ highest concentration
     
-#     koff = 1/tau_max
-#     kon = -koff**2 * ((tau_min-tau_max)/(c_min-c_max))
+    koff = 1/tau_max
+    kon = -koff**2 * ((tau_min-tau_max)/(c_min-c_max))
     
-#     return kon, koff
+    return [kon, koff]
     
-# def solve_eqs_old(data):
+def solve_eqs_old(data):
+    x = data[:,0]
+    y = data[:,1]
+    p0 = estimate_koff_kon(data)
+    try:
+        popt,pcov = optimize.curve_fit(tau_conc_func,x,y,p0=p0,method='trf')
+        popt = np.abs(popt)
+        success = 1
+    except:
+        popt = np.ones(2) * np.nan
+        success = 0
         
+    return popt, success
 #%%
 def obsol_ensemble(obsol,weights):
     '''
@@ -436,12 +447,6 @@ def obsol_ensemble(obsol,weights):
     '''
     ### For every setting group according to (vary,rep)
     df = obsol.groupby(['vary','rep']).apply(obs_ensemble)
-    
-    ### Prepare data for fitting of ensemble 
-    data = df.loc[:,OBS_ENSEMBLE_USEFIT_COLS].values.astype(np.float32)
-    
-    ### Solve equation system
-    x, success, cs, n = solve_eqs(data,weights)
     
     ### Prepare output
     setting = df.setting.values
@@ -452,14 +457,25 @@ def obsol_ensemble(obsol,weights):
     
     ### Assign observables
     obs[OBSSOL_COLS] = df[OBSSOL_COLS].values
-    obs = obs.rename({'group':'groups'})
-    ### Assign solution
-    obs.koff = x[n]
-    obs.N = x[n+1]
-    for i,c in enumerate(cs): obs.loc[obs.vary==c,'konc'] = x[i]
     obs.n_points = len(df)
-    obs.success = int(success)
     
+    ### Prepare data for fitting of ensemble 
+    data = df.loc[:,OBS_ENSEMBLE_USEFIT_COLS].values.astype(np.float32)
+    
+    ### Solve equation system
+    if np.all(np.isfinite(weights)):                                                    # New fitting approach if wieghts are properly defined
+        x, success, cs, n = solve_eqs(data,weights)  
+        ### Assign solution
+        obs.koff = x[n]
+        obs.N = x[n+1]
+        for i,c in enumerate(cs): obs.loc[obs.vary==c,'konc'] = x[i]
+        obs.success = int(success)
+    else:                                                                                         # Old fitting approach for ill defined weights
+        popt,success = solve_eqs_old(data)
+        obs.koff = popt[0]
+        obs.N = np.nan
+        obs.konc = popt[1] * obs.vary
+        
     return obs
 
 #%%
@@ -473,3 +489,23 @@ def get_obsol_ensemble(obsol_per_group, weights):
     df = df.astype(OBSOL_TYPE_DICT)
     
     return df
+
+#%%
+def N_via_ensemble(obs,obs_ensemble):
+    '''
+    Returns number of docking strands N as calculated using ensemble series approach.
+    '''
+    ### Get ensemble rates
+    kon = np.mean(obs_ensemble.konc/obs_ensemble.vary)
+    konc = kon*obs.vary
+    koff = np.mean(obs_ensemble.koff)
+    ### Compute number of docking strands based on ensemble rates
+    N = (1/obs.A) * (koff/(konc))
+    ### Init and assign to output
+    df_out = obs.copy()
+    df_out.koff = koff
+    df_out.konc = konc
+    df_out.N = N
+    
+    return df_out
+    

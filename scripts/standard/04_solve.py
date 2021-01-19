@@ -8,12 +8,29 @@ plt.style.use('~/lbFCS/styles/paper.mplstyle')
 #%%
 #################### Define parameters
 params = {}
+### Old Pm2@200ms & T=21C
+params['dir_name'] = r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/z.olddata/N1_T21/20-01-19_FS'
 
+### New Pm2@200ms
+# params['dir_name'] = r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-09_N1_T23_ibidi_cseries/21-01-19_FS_id181'
+
+### 5xCTC@200ms&400ms
+# params['dir_name'] = r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-09_N1_T23_ibidi_cseries/21-01-19_FS_id180'
+# params['dir_name'] = r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-10_N1-5xCTC_cseries_varexp/21-01-19_FS_id180_exp200'
+# params['dir_name'] = r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-10_N1-5xCTC_cseries_varexp/21-01-19_FS_id180_exp400'
+
+### N != 1, 5xCTC@400ms
 # params['dir_name']  = r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-17_N1-2x5xCTC_cseries/20-12-17_FS_id180'
 # params['dir_name']  = r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-18_N2-5xCTC_cseries/20-12-18_FS_id194'
-params['dir_name']  = r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-17_N1-2x5xCTC_cseries/20-12-17_FS_id192_sample2'
 
-params['exp'] = 0.4
+### S1_5xCTC adapter@200ms&400ms
+# params['dir_name'] = r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-10_N1-5xCTC_cseries_varexp/21-01-19_FS_id163_exp200'
+# params['dir_name'] = r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-10_N1-5xCTC_cseries_varexp/21-01-19_FS_id163_exp400'
+
+### N=2, JHK_5xCTC adapter@200ms&400ms
+# params['dir_name']  = r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-17_N1-2x5xCTC_cseries/20-12-17_FS_id192_sample2'
+
+params['exp'] = 0.2
 params['exclude_rep'] = []
 params['weights']        = [1,1,1,0,0]
 params['solve_mode'] = 'single'

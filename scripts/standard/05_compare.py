@@ -12,9 +12,29 @@ plt.style.use('~/lbFCS/styles/paper.mplstyle')
 #################### Define directories of solved series
 dir_names = []
 
-dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-17_N1-2x5xCTC_cseries/20-12-17_FS_id180'])
-dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-18_N2-5xCTC_cseries/20-12-18_FS_id194'])
-# dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-17_N1-2x5xCTC_cseries/20-12-17_FS_id192_sample2'])
+### Old Pm2@200ms & T=23C
+# dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/z.olddata/N1/20-01-18_JS'])
+# dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/z.olddata/N4/20-01-18_JS'])
+# dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/z.olddata/N12/20-01-18_JS'])
+
+### Old Pm2@200ms & T=21C
+# dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/z.olddata/N1_T21/20-01-19_FS'])
+
+### New Pm2 @200ms & T=23C
+# dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-09_N1_T23_ibidi_cseries/21-01-19_FS_id181'])
+
+### 5xCTC@200ms&400ms & T=23C
+# dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-09_N1_T23_ibidi_cseries/21-01-19_FS_id180'])
+# dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-10_N1-5xCTC_cseries_varexp/21-01-19_FS_id180_exp200'])
+# dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-10_N1-5xCTC_cseries_varexp/21-01-19_FS_id180_exp400'])
+# dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-17_N1-2x5xCTC_cseries/20-12-17_FS_id180'])
+
+### N != 1, 5xCTC@400ms & T=23C
+# dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-18_N2-5xCTC_cseries/20-12-18_FS_id194'])
+
+### S1_5xCTC adapter @200ms&400ms & T=23C
+# dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-10_N1-5xCTC_cseries_varexp/21-01-19_FS_id163_exp200'])
+# dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-10_N1-5xCTC_cseries_varexp/21-01-19_FS_id163_exp400'])
 
 
 #################### Load data
@@ -33,30 +53,63 @@ files = pd.concat([pd.read_csv(p) for p in files_paths])
 Analyze
 '''
 ####################
-### Combine obsol and ensemble solving (old&new)
-obsol_comb = solve.combine_obsol(obsol)                                     # Combined
-obsol_ensemble = solve.get_obsol_ensemble(obsol,[1,1,1,0,0])    # New ensemble solving
+obsol_comb = solve.combine_obsol(obsol)  
 
+###################### Preselect which measurements are taken into account
+varies = np.unique(obsol.vary)
 
-### Preselect which measurements are taken into account
-settings = [2]
-dates = [20201218]
+query_str = 'vary in @varies'
 
-query_str = 'setting in @settings and date in @dates'
+sub = obsol.query(query_str)
+sub_comb = solve.combine_obsol(sub)                                                  # Combined solutions
+sub_ensemble = solve.get_obsol_ensemble(sub,weights = [np.nan])   # Old fitting approach
+sub_old = solve.N_via_ensemble(sub,sub_ensemble)                            # Assign koff,kon&N based on old method
 
-subset = obsol.query(query_str )
-subset_comb = obsol_comb.query(query_str )
-subset_ensemble = obsol_ensemble.query(query_str )
+solve.print_solutions(sub_comb)
+solve.print_solutions(sub_ensemble)
 
-kon = np.mean(subset_ensemble.konc/subset_ensemble.vary)
-koff = np.mean(subset_ensemble.koff)
-N = (1/subset.A) * (koff/(kon*subset.vary))
-
-bins = np.linspace(0,5,60)
+##################### Plotting
+varies = varies
+field = 'konc'
+bins = np.linspace(0,5,100)
+bins = 'fd'
 
 f = plt.figure(0,figsize = [5,4])
 f.clear()
 ax = f.add_subplot(111)
-ax.hist(N,bins=bins,histtype='step',ec='grey')
-ax.hist(subset.N,bins=bins,histtype='step',ec='r')
+# ax.hist(sub_old.query('vary in @varies')[field],bins=bins,histtype='step',ec='grey',lw=1.5)
+ax.hist(sub.query('vary in @varies')[field],bins=bins,histtype='step',ec='darkblue',lw=1.5)
+# ax.set_xlim(-0.1,0.1)
+
+### 1/tau vs. c
+# f = plt.figure(1,figsize = [5,4])
+# f.clear()
+
+# ax = f.add_subplot(111)
+# ax.plot(sub_ensemble.vary,
+#         (sub_ensemble.tau * sub_ensemble.exp),
+#         'o')
+
+# x = np.arange(21000)
+# exp = np.mean(sub_ensemble.exp)
+# koff = np.mean(sub_ensemble.koff)
+# kon = np.mean(sub_ensemble.konc/sub_ensemble.vary)
+# y = (solve.tau_conc_func(x,koff,kon) * exp)
+# ax.plot(x,y,'-')
+
+######################
+# ins = sub.query('vary in @varies and N > 0.')
+# outs = sub.query('vary in @varies and N <= 0.7')
+
+# field = 'A'
+# bins = np.linspace(0,5,100)
+# bins = 'fd'
+
+# f = plt.figure(1,figsize = [5,4])
+# f.clear()
+# ax = f.add_subplot(111)
+# # ax.hist(1/ins[field],bins=bins,histtype='step',ec='grey',lw=1.5)
+# # ax.hist(1/outs[field],bins=bins,histtype='step',ec='red',lw=1.5)
+# ax.scatter(ins['occ'],ins['events'],c=1/ins['A'],alpha=0.2)
+# # ax.scatter(outs['occ'],outs['events'],c='r',alpha=0.5)
 
