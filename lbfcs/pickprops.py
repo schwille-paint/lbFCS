@@ -2,6 +2,7 @@
 import os
 import numpy as np
 import scipy.optimize
+import scipy.spatial
 import importlib
 import pandas as pd
 from tqdm import tqdm
@@ -521,7 +522,13 @@ def main(locs,info,path,conditions,**params):
                                mode='ralf',
                                )
     
-    ################################### Some final adjustments assigning conditions and downcasting dtypes wherever possible
+    ##################################### Assign nearest neighbor distance
+    data = locs_props[['x','y']].values.astype(np.float32)
+    tree = scipy.spatial.cKDTree(data)              # Build up tree
+    d,idx = tree.query(data,k=[2])                    # Query data for nearest neigbor (not self, i.e. k=2!)
+    locs_props = locs_props.assign(nn_d = d)   # Assign to props 
+                                   
+    ##################################### Some final adjustments assigning conditions and downcasting dtypes wherever possible
     locs_props.reset_index(inplace=True) # Assign group to columns
     locs_props = locs_props.assign(setting = conditions[0])
     locs_props = locs_props.assign(vary = conditions[1])

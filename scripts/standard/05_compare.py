@@ -24,7 +24,7 @@ dir_names = []
 # dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-09_N1_T23_ibidi_cseries/21-01-19_FS_id181'])
 
 ### 5xCTC@200ms&400ms & T=23C
-# dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-09_N1_T23_ibidi_cseries/21-01-19_FS_id180'])
+dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-09_N1_T23_ibidi_cseries/21-01-19_FS_id180'])
 # dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-10_N1-5xCTC_cseries_varexp/21-01-19_FS_id180_exp200'])
 # dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-10_N1-5xCTC_cseries_varexp/21-01-19_FS_id180_exp400'])
 # dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-17_N1-2x5xCTC_cseries/20-12-17_FS_id180'])
@@ -69,15 +69,15 @@ solve.print_solutions(sub_comb)
 solve.print_solutions(sub_ensemble)
 
 ##################### Plotting
-varies = varies
-field = 'konc'
-bins = np.linspace(0,5,100)
-bins = 'fd'
+varies = [5000]
+field = 'N'
+bins = np.linspace(0,3,100)
+# bins = 'fd'
 
 f = plt.figure(0,figsize = [5,4])
 f.clear()
 ax = f.add_subplot(111)
-# ax.hist(sub_old.query('vary in @varies')[field],bins=bins,histtype='step',ec='grey',lw=1.5)
+ax.hist(sub_old.query('vary in @varies')[field],bins=bins,histtype='step',ec='grey',lw=1.5)
 ax.hist(sub.query('vary in @varies')[field],bins=bins,histtype='step',ec='darkblue',lw=1.5)
 # ax.set_xlim(-0.1,0.1)
 

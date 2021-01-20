@@ -1,7 +1,6 @@
 import sys
 import glob
 import os
-import re
 import numpy as np
 import pandas as pd
 import numba
@@ -15,15 +14,32 @@ import picasso_addon.io as addon_io
 
 warnings.filterwarnings("ignore")
 
-### Global variables
-PROPS_USEFIT_COLS = ['vary','tau_lin','A_lin','n_locs','tau_d','n_events'] + ['ignore','M']
+### Columns names used for preparing fit data from props
+PROPS_USEFIT_COLS = ['vary','tau_lin','A_lin','n_locs','tau_d','n_events'] + ['ignore','M'] 
 
-OBSSOL_COLS = ['setting','vary','rep','group','tau','A','occ','taud','events'] + ['koff','konc','N','n_points','success'] + ['B','eps','snr','sx','sy'] + ['ignore','M','exp','date']
-OBS_COLS = ['setting','vary','rep','group','tau_lin','A_lin','n_locs','tau_d','n_events','B','bg','sx','sy'] + ['ignore','M','date']
-OBS_COLS_NEWNAME = ['setting','vary','rep','group','tau','A','occ','taud','events','B','snr','sx','sy'] +  ['ignore','M','date']
+### Columns of obsol
+OBSSOL_COLS = (['setting','vary','rep','group']
+               +['tau','A','occ','taud','events'] 
+               + ['koff','konc','N','n_points','success']
+               + ['B','eps','snr','sx','sy']
+               + ['x','y','nn_d','frame','std_frame']
+               + ['ignore','M','exp','date'])
+### Columns transferred from props to obsol
+OBS_COLS = (['setting','vary','rep','group']
+            + ['tau_lin','A_lin','n_locs','tau_d','n_events']
+            + ['B','bg','sx','sy']
+            + ['x','y','nn_d','frame','std_frame']
+            + ['ignore','M','date'])
+### New names of columns transferred from props
+OBS_COLS_NEWNAME = (['setting','vary','rep','group'] 
+                    + ['tau','A','occ','taud','events']
+                    + ['B','snr','sx','sy']
+                    + ['x','y','nn_d','frame','std_frame']
+                    + ['ignore','M','date'])
+### Columns names used for preparing fit data from obs
+OBS_USEFIT_COLS = ['vary','tau','A','occ','taud','events'] + ['ignore','M']
 
-OBS_ENSEMBLE_USEFIT_COLS = ['vary','tau','A','occ','taud','events'] + ['ignore','M']
-
+### Dict for obsol type conversion
 OBSOL_TYPE_DICT = {'setting':np.uint16,
                                    'vary':np.uint16,
                                    'rep':np.uint8,
@@ -46,6 +62,12 @@ OBSOL_TYPE_DICT = {'setting':np.uint16,
                                    'snr':np.float32,
                                    'sx':np.float32,
                                    'sy':np.float32,
+                                   #
+                                   'x':np.float32,
+                                   'y':np.float32,
+                                   'nn_d':np.float32,
+                                   'frame':np.float32,
+                                   'std_frame':np.float32,
                                    #
                                    'M':np.uint16,
                                    'ignore':np.uint8,
@@ -460,7 +482,7 @@ def obsol_ensemble(obsol,weights):
     obs.n_points = len(df)
     
     ### Prepare data for fitting of ensemble 
-    data = df.loc[:,OBS_ENSEMBLE_USEFIT_COLS].values.astype(np.float32)
+    data = df.loc[:,OBS_USEFIT_COLS].values.astype(np.float32)
     
     ### Solve equation system
     if np.all(np.isfinite(weights)):                                                    # New fitting approach if wieghts are properly defined
