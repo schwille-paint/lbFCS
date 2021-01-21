@@ -386,8 +386,8 @@ def combine_obsol(obsol_per_group):
     '''
     Group obsol by (setting,rep) and get ensemble means and medians.
     '''
-    df = obsol_per_group.groupby(['date','setting','vary','rep']).apply(lambda df: obs_ensemble(df))
-    df = df.droplevel( level = ['date','vary','rep'])
+    df = obsol_per_group.groupby(['date','setting','exp','vary','rep']).apply(lambda df: obs_ensemble(df))
+    df = df.droplevel( level = ['date','exp','vary','rep'])
     df = df.drop(columns = ['setting'])
     df = df.reset_index()
     
@@ -398,7 +398,7 @@ def combine_obsol(obsol_per_group):
 
 #%%
 def print_solutions(df):
-    df = df.sort_values(by=['date','setting','vary','rep'])
+    df = df.sort_values(by=['date','setting','exp','vary','rep'])
     print()
     print('     date     |           id            |   groups  |   koff [1/s]  |  kon [1/Ms] |     N')
     for i in range(len(df)):

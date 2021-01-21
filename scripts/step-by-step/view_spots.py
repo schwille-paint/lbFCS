@@ -10,20 +10,20 @@ plt.style.use('~/lbFCS/styles/paper.mplstyle')
 
 ##################### Parameters
 savepath = '~/bla.hdf5'
-reps = 100
-M = 10
-CycleTime = 0.2
+reps = 1000
+M = 1000
+CycleTime = 0.4
 
 N = 1
-koff = 0.28
-kon = 6e6
-c = 10e-9
+koff = 0.11
+kon = 17e6
+c = 1e-9
 
-box = 9
-e_tot = 300
-snr = 2.5
+box = 7
+e_tot = 400
+snr = 5
 sigma = 0.9
-use_weight = True
+use_weight = False
 
 ### Simulate hybridization reaction
 locs, info, spots = simulate.generate_locs(savepath,reps,M,CycleTime,N,koff,kon,c,box, e_tot, snr, sigma, use_weight)
@@ -34,7 +34,7 @@ spots_readnoise = spots[4]
 
 #%%
 ##################### View spots
-idx = 70 # Select
+idx = 259 # Select
 locs_select = locs.iloc[idx,:] 
 
 ##################### Print fitted parameters

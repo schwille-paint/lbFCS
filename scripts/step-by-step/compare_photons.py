@@ -1,10 +1,12 @@
+import os
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
-import importlib
 
+import lbfcs
 import lbfcs.simulate as simulate
-import picasso_addon.localize as localize
-importlib.reload(simulate)
+import lbfcs.solveseries as solve
+import picasso.io as io
 
 plt.style.use('~/lbFCS/styles/paper.mplstyle')
 
@@ -13,59 +15,63 @@ plt.style.use('~/lbFCS/styles/paper.mplstyle')
 savepath = '~/bla.hdf5'
 reps = 1000
 M = 1000
-CycleTime = 0.2
+CycleTime = 0.4
 
 N = 1
-koff = 0.15
-kon = 15e6
-c = 10e-9
+koff = 0.11
+kon = 17e6
+c = 5e-9
 
 box = 7
 e_tot = 400
-snr = 2
+snr = lbfcs.snr_from_conc(c)
 sigma = 0.9
-use_weight = True
+use_weight = False
 
 ### Simulate hybridization reaction
 locs, info, spots = simulate.generate_locs(savepath,reps,M,CycleTime,N,koff,kon,c,box, e_tot, snr, sigma, use_weight)
 
 #%%
 ##################### Plot
-bins = np.linspace(0,5,100)
-
-# positives = locs_long['imagers']%1 > 0
-
-# level = 0
-# positives = (locs_long['imagers'] >level) & (locs_long['imagers'] <level+1)
-
-positives = locs['net_gradient'] > 600
-# f=plt.figure(1,figsize=[4,3])
-# f.subplots_adjust(bottom=0.2,top=0.95,left=0.2,right=0.95)
-# f.clear()
-# ax = f.add_subplot(111)
-# signal = ax.hist(locs['photons']/e_tot,
-#         bins=bins,
-#         histtype='step',
-#         ec='g')[0]
-# bg = ax.hist(locs[positives]['photons']/e_tot,
-#         bins=bins,
-#         histtype='step',
-#         ec='r')[0]
-# # ax.plot(bins[:-1] + (bins[1]-bins[0])/2,
-# #         signal-bg,
-# #         c='b')
-# ax.set_yscale('log')
-# ax.set_ylim(10,1e5)
-
-
-f=plt.figure(2,figsize=[4,3])
+bins = np.linspace(0,1400,100)
+ 
+f=plt.figure(1,figsize=[4.5,3.5])
 f.subplots_adjust(bottom=0.2,top=0.95,left=0.2,right=0.95)
 f.clear()
 ax = f.add_subplot(111)
-ax.scatter(locs[positives]['photons'],
-            locs[positives]['net_gradient'],
-            s=10,
-            alpha=0.5,
-            )
-ax.set_xlim(0,5*e_tot)
-for i in range(4): ax.axvline(i*e_tot,lw=2,c='r')
+ax.hist(locs['photons'],
+        bins=bins,
+        histtype='step',
+        ec='k')
+ax.set_yscale('log')
+
+
+#%%
+##################### Compare with real measurement
+dir_name = '/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-10_N1-5xCTC_cseries_varexp/21-01-19_FS_id180_exp400'
+file_name_locs = 'id180_Pm2-05nM_p40uW_exp400_1_MMStack_Pos0.ome_locs_render_picked.hdf5'
+file_name_props = 'id180_Pm2-05nM_p40uW_exp400_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'
+
+
+locs_exp_init = pd.DataFrame(io.load_locs(os.path.join(dir_name,file_name_locs))[0]) 
+props_exp_init = pd.DataFrame(io.load_locs(os.path.join(dir_name,file_name_props))[0]) 
+
+### Filter props and query locs for groups in picked
+props_exp = solve.prefilter(props_exp_init)
+groups = props_exp.group.values
+locs_exp = locs_exp_init.query('group in @groups')
+
+##################### Plot
+bins = np.linspace(0,1400,100)
+
+select = (np.abs(locs_exp.x - 350) < 30) & (np.abs(locs_exp.y - 350) < 30)
+
+f=plt.figure(2,figsize=[4.5,3.5])
+f.subplots_adjust(bottom=0.2,top=0.95,left=0.2,right=0.95)
+f.clear()
+ax = f.add_subplot(111)
+ax.hist(locs_exp[select]['photons'],
+        bins=bins,
+        histtype='step',
+        ec='k')
+ax.set_yscale('log')

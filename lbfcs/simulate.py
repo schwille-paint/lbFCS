@@ -113,6 +113,41 @@ def generate_trace(M,CycleTime,N,koff,kon,c,factor=10):
     return traceN
 
 #%%
+def traces_to_locs(reps,M,CycleTime,N,koff,kon,c, box):
+    
+    ### Init locs
+    locs=np.zeros(reps*M,dtype=LOCS_DTYPE)
+    frames=np.arange(0,M,1).astype(int) # Timestamp
+    
+    ### Fill locs
+    for r in range(reps):
+        ### Generate trace
+        trace = generate_trace(M,CycleTime,N,koff,kon,c)
+        
+        ### Assign
+        start=r*M
+        end=(r+1)*M
+        locs['frame'][start:end] = frames
+        locs['x_in'][start:end]  = int(box/2) + np.random.rand(1) * (700 - box)
+        locs['y_in'][start:end]  = int(box/2) + np.random.rand(1) * (700 - box)
+        locs['imagers'][start:end] = trace
+        locs['group'][start:end] = r 
+    
+    ### Assign input parameters
+    locs['M']=M
+    locs['exp']=CycleTime
+    locs['N_in']=N
+    locs['koff']=koff
+    locs['kon']=kon
+    locs['conc']=c
+    
+    ### Copy input position coordinates
+    locs['x'] = locs['x_in']
+    locs['y'] = locs['y_in']
+    
+    return locs
+
+#%%
 def generate_locs(savepath,
                   reps,
                   M,
@@ -141,58 +176,38 @@ def generate_locs(savepath,
     print()
     
     t0=time.time()
+    
     ### Checks
     assert isinstance(M,int)
     assert isinstance(N,int)
     assert isinstance(reps,int)
     
-    ### Init locs
-    locs=np.zeros(reps*M,dtype=LOCS_DTYPE)
-    frames=np.arange(0,M,1).astype(int) # Timestamp
-    
-    ### Fill locs
-    for r in range(reps):
-        ### Generate trace
-        trace = generate_trace(M,CycleTime,N,koff,kon,c,10)
-        
-        ### Assign
-        start=r*M
-        end=(r+1)*M
-        locs['frame'][start:end] = frames
-        locs['x_in'][start:end]  = int(box/2) + np.random.rand(1) * (700 - box)
-        locs['y_in'][start:end]  = int(box/2) + np.random.rand(1) * (700 - box)
-        locs['imagers'][start:end] = trace
-        locs['group'][start:end] = r 
-    
-    ### Assign input parameters
-    locs['M']=M
-    locs['exp']=CycleTime
-    locs['N_in']=N
-    locs['koff']=koff
-    locs['kon']=kon
-    locs['conc']=c
+    ### Simulate hybridization traces (repetition = reps) and return as locs with group ids and other necessary columns
+    locs = traces_to_locs(reps,M,CycleTime,N,koff,kon,c, box)
     
     ### Remove zeros in imager levels
     locs=locs[locs['imagers']>0]
     
-    ### Copy input coordinates
-    locs['x'] = locs['x_in']
-    locs['y'] = locs['y_in']
-    
     ### Add photon noise by spot creation and fitting
-    locs, spots = noise_fitspots(locs, box, e_tot, snr, sigma, use_weight=True)
+    bg = snr_to_bg(e_tot,snr,sigma)
+    locs, spots = noise_fitspots(locs, box, e_tot, bg, sigma, use_weight)
     
     ### Convert to DataFrame
     locs = pd.DataFrame(locs)
     
-    ### Check for any negative values in photon, bg, sx, sy values
+    ### Check for any negative values in photon, bg, sx, sy values ...
     positives = (locs.photons>0) & (locs.bg>0) & (locs.sx>0) & (locs.sy>0)
+    locs = locs[positives]
+    ### ... and remove localizations below mng
+    mng = set_mng(box,e_tot,snr,sigma)[0]
+    positives = locs.net_gradient > mng
     locs = locs[positives]
     
     ### Apply photon step filter
     print('Applying Chung-Kennedy filter ...')
-    tqdm.pandas()
-    locs = locs.groupby('group').progress_apply(lambda df: df.assign( photons_ck = autopick.ck_nlf(df.photons.values).astype(np.float32) ) )
+    locs = locs.groupby('group').apply(lambda df: df.assign( photons_ck = autopick.ck_nlf(df.photons.values).astype(np.float32) ) )
+    locs = locs.droplevel(level=['group'])
+    locs = locs.reset_index()
     
     ###
     print('Total time: %.2f [s]'%(time.time()-t0))
@@ -214,6 +229,8 @@ def generate_locs(savepath,
             'snr':snr,
             'sigma':sigma,
             'use_weight':use_weight,
+            'mng':mng,
+            'bg':bg,
             }]
     
     try:
@@ -227,10 +244,10 @@ def generate_locs(savepath,
     return locs, info, spots 
 
 #%%
-def noise_fitspots(locs, box, e_tot, snr, sigma, use_weight):
+def noise_fitspots(locs, box, e_tot, bg, sigma, use_weight):
     
     ### Generate spots
-    spots = generate_spots(locs, box, e_tot, snr, sigma)
+    spots = generate_spots(locs, box, e_tot, bg, sigma)
     ### Fit spots
     locs_noise = fit_spots(locs,box,spots[0],spots[1],use_weight)
     ### Compute and assing net-gradient
@@ -247,8 +264,11 @@ def gauss2D_on_mesh(p, xi, yi):
 
     return y
 
+#%% 
+def snr_to_bg(e_tot,snr,sigma): return e_tot / (2*np.pi*sigma**2*snr) # Background = amplitde/snr!
+
 #%%
-def generate_spots(locs, box, e_tot, snr, sigma):
+def generate_spots(locs, box, e_tot, bg, sigma):
     
     print('Generating spots ... ')
     n_spots = len(locs)
@@ -269,14 +289,15 @@ def generate_spots(locs, box, e_tot, snr, sigma):
     p_spots[:,2] = (box-1)/2 + locs['x_in'] - np.round(locs['x_in'])                     
     p_spots[:,3] = sigma                                       # Same width in x and y direction!
     p_spots[:,4] = sigma                                       
-    p_spots[:,5] = e_tot / (2*np.pi*sigma**2*snr) # Background = amplitde/snr!
+    p_spots[:,5] = bg
     
     ### Generate gauss2D spots without noise
     spots = gauss2D_on_mesh(p_spots, i_spots, j_spots)
     spots = spots.reshape(n_spots,box*box) # Flatten 
     
-    ### Generate gauss2D spots with shot noise
+    ### Generate gauss2D spots with super-poissonian shot noise
     spots_shotnoise = np.random.poisson(spots)
+    # spots_shotnoise = np.random.poisson(spots_shotnoise) # super-poissonian shot noise?!?
     
     ### Generate spots readout noise 
     spots_readvar = localize.cut_spots_readvar(locs,box)
@@ -357,3 +378,29 @@ def netgradient_spots(spots):
                     ng[spot_idx] += (gj * uy[j,i] + gi * ux[j,i])
                     
     return ng
+
+#%%
+def set_mng(box,e_tot,snr,sigma):
+    
+    ### Create locs with zero photons for generation of empty spots
+    locs_zero = np.zeros(1000,dtype=LOCS_DTYPE)
+    
+    ### Assign necessary coordinates to locs for cut out of readvar maps
+    locs_zero['x_in'] = int(box/2) + np.random.rand(1000) * (700 - box)
+    locs_zero['y_in'] = int(box/2) + np.random.rand(1000) * (700 - box)
+    locs_zero['x'] = locs_zero['x_in']
+    locs_zero['y'] = locs_zero['y_in']
+    
+    ### Generate spots with background fluorescence and readvar variance only (empty spots)
+    bg = snr_to_bg(e_tot,snr,sigma)
+    spots_zero = generate_spots(locs_zero, box, e_tot, bg, sigma)[0]
+    
+    ### Calculate net gradient of empty spots ans set mng equivalent to picasso_addon.localize()
+    ng = netgradient_spots(spots_zero)
+    mng = np.median(ng)+4 * np.std(ng)
+    mng = int(np.ceil(mng/10)*10) 
+    
+    print('                            ... for setting mng ')
+    print('With bg of %.1f mng set to %i'%(bg,mng))
+    
+    return mng,ng, spots_zero
