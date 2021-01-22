@@ -1,35 +1,33 @@
-import importlib
 import os
 import numpy as np
 
+import lbfcs
 import lbfcs.simulate as simulate
-importlib.reload(simulate)
 
 ### Define system constants
 reps = 1000
-M = 9000
-CycleTime = 0.2
+M = 4500
+CycleTime = 0.4
 
-N = 10
-koff = 0.15
-kon = 6e6
-# cs = [5e-9,10e-9,20e-9]
-cs = [2e-9]
+N = 1
+koff = 1.15e-1
+kon = 17e6
+cs = [5000e-12,2500e-12,1250e-12]
+# cs = [625e-12,313e-12]
 
-box = 9
-e_tot = 250
-snr = 3
+box = 7
+e_tot = 400
 sigma = 0.9
-use_weight = True
+use_weight = False
 
-savedir=r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-03_SimulationsNoise/exp200_koff15_kon6/e250_snr3_box9'
+savedir = '/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-01-22_Simulation/5xCTC_exp400_T23/N01'
 #%%
 for c in cs:
     ### Path and naming
     N_str=('%i'%(N)).zfill(2)
     c_str=('%i'%(c*1e12)).zfill(4)
     
-    savename='N%s_c%s_picked.hdf5'%(N_str,c_str)
+    savename='N%s_c%s.hdf5'%(N_str,c_str)
     savepath=os.path.join(savedir,savename)
     
     ### Generate simulation
@@ -43,6 +41,6 @@ for c in cs:
                                   c,
                                   box,
                                   e_tot,
-                                  snr,
+                                  lbfcs.snr_from_conc(c),
                                   sigma,
                                   use_weight)

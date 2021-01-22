@@ -82,13 +82,18 @@ def load_props_in_dir(dir_name):
     '''
     ### Get sorted list of all paths to props in dir_name
     paths = sorted( glob.glob( os.path.join( dir_name,'*_props*.hdf5') ) )
+    
     ### Load files
     props = pd.concat([pd.DataFrame(io.load_locs(p)[0]) for p in paths],keys=range(len(paths)),names=['rep'])
     props = props.reset_index(level=['rep'])
+    
     ### Load infos and get aquisition dates
     infos = [io.load_info(p) for p in paths]
-    dates = [info[0]['Micro-Manager Metadata']['Time'] for info in infos] # Get aquisition date
-    dates = [int(date.split(' ')[0].replace('-','')) for date in dates]
+    try: # Data aquisition with Micro-Mananger
+        dates = [info[0]['Micro-Manager Metadata']['Time'] for info in infos] # Get aquisition date
+        dates = [int(date.split(' ')[0].replace('-','')) for date in dates]
+    except: # Simulations
+        dates = [info[0]['date'] for info in infos]
     
     ### Create comprehensive list of loaded files
     files = pd.DataFrame([],

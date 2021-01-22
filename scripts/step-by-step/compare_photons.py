@@ -18,7 +18,7 @@ M = 1000
 CycleTime = 0.4
 
 N = 1
-koff = 0.11
+koff = 1.15e-1
 kon = 17e6
 c = 5e-9
 
@@ -64,7 +64,7 @@ locs_exp = locs_exp_init.query('group in @groups')
 ##################### Plot
 bins = np.linspace(0,1400,100)
 
-select = (np.abs(locs_exp.x - 350) < 30) & (np.abs(locs_exp.y - 350) < 30)
+select = (np.abs(locs_exp.x - 350) < 50) & (np.abs(locs_exp.y - 350) < 50)
 
 f=plt.figure(2,figsize=[4.5,3.5])
 f.subplots_adjust(bottom=0.2,top=0.95,left=0.2,right=0.95)

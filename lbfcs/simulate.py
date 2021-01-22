@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import numba
 import time
-from tqdm import tqdm
+from datetime import datetime
 
 ### Test if GPU fitting can be used
 try:
@@ -217,20 +217,21 @@ def generate_locs(savepath,
     print('Saving ...')
     info=[{'Width':700,
             'Height':700,
-            'reps':reps,
-            'Frames':M,
-            'exp':CycleTime,
-            'N':N,
-            'koff':koff,
-            'kon':kon,
-            'conc':c,
-            'box':box,
-            'e_tot':e_tot,
-            'snr':snr,
-            'sigma':sigma,
-            'use_weight':use_weight,
-            'mng':mng,
-            'bg':bg,
+            'reps':int(reps),
+            'Frames':int(M),
+            'exp':float(CycleTime),
+            'N':int(N),
+            'koff':float(koff),
+            'kon':float(kon),
+            'conc':float(c),
+            'box':int(box),
+            'e_tot':int(e_tot),
+            'snr':float(snr),
+            'sigma':float(sigma),
+            'use_weight':bool(use_weight),
+            'mng':int(mng),
+            'bg':float(bg),
+            'date': int(datetime.now().strftime('%Y%m%d')),
             }]
     
     try:
