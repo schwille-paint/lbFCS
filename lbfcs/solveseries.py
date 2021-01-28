@@ -185,7 +185,7 @@ def A_func(koff,konc,N,A_meas): return koff / (konc*N) - A_meas
 
 @numba.jit(nopython=True, nogil=True, cache=False)
 def occ_func(koff,konc,N,occ_meas):
-    p   = ( 1/koff + 1 ) / ( 1/koff + 1/konc ) # Probability of bound imager
+    p   = ( 1/koff + 1 ) / ( 1/koff + 1/konc ) # Probability of bound imager                                 CORRECTION TERM CHANGED!!!!!
     occ = 1 - np.abs(1-p)**N
     occ = occ - occ_meas
     return occ
@@ -235,7 +235,7 @@ def create_eqs(x,data, weights):
             system[eq_idx+4] = ( w[4] / data[c_idx,5] ) * events_func(data[c_idx,-1],data[c_idx,-2],x[n],x[i],x[n+1],data[c_idx,5])
             
             eq_idx += 5
-            
+    
     return system
 
 #%%
