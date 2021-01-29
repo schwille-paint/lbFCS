@@ -8,20 +8,19 @@ import lbfcs.pickprops as props
 
 ############################################################# Which experiment?
 # Experimental setting,  like i.e constant variables like labeling, origami design etc.
-setting = [4]*5
+setting = [6]*4
 # Controlled varying experimental variable like temperature in C (21,22,23) or concentration in pM (1000, 5000)
-vary    = [5000,2500,1250,625,313]
+vary    = [5000,2500,1250,625]
 
 ############################################# Load raw data
 dir_names=[]
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-01-28_Simulation_meanvarI-test/5xCTC_exp200_T23_kon30e6/N04']*5)
+dir_names.extend(['//fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-01-28_higherN-5xCTC_cseries/21-01-28_JS_N6_new']*4)
 
 file_names=[]
-file_names.extend(['N04_c5000.hdf5'])
-file_names.extend(['N04_c2500.hdf5'])
-file_names.extend(['N04_c1250.hdf5'])
-file_names.extend(['N04_c0625.hdf5'])
-file_names.extend(['N04_c0313.hdf5'])
+file_names.extend(['id201_5000pM_p40uW_exp400_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
+file_names.extend(['id201_2500pM_p40uW_exp400_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
+file_names.extend(['id201_1250pM_p40uW_exp400_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
+file_names.extend(['id201_625pM_p40uW_exp400_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
 
 
 ############################################ Set parameters 
@@ -30,7 +29,7 @@ params={'ignore':1,
 
 ############################################# Start dask parallel computing cluster 
 try:
-    client = Client('localhost:8786')
+    client = Client('localhost:8787')
     print('Connecting to existing cluster...')
 except OSError:
     props.cluster_setup_howto()

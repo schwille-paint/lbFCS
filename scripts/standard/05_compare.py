@@ -12,36 +12,18 @@ plt.style.use('~/lbFCS/styles/paper.mplstyle')
 #################### Define directories of solved series
 dir_names = []
 
-### Old Pm2@200ms & T=23C
-# dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/z.olddata/N1/20-01-18_JS'])
-# dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/z.olddata/N4/20-01-18_JS'])
-# dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/z.olddata/N12/20-01-18_JS'])
-
-### Old Pm2@200ms & T=21C
-# dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/z.olddata/N1_T21/20-01-19_FS'])
-
-### New Pm2 @200ms & T=23C
-# dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-09_N1_T23_ibidi_cseries/21-01-19_FS_id181'])
-
-### 5xCTC@200ms&400ms & T=23C
-# dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-09_N1_T23_ibidi_cseries/21-01-19_FS_id180'])
-# dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-10_N1-5xCTC_cseries_varexp/21-01-19_FS_id180_exp200'])
-# dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-10_N1-5xCTC_cseries_varexp/21-01-19_FS_id180_exp400'])
-# dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-17_N1-2x5xCTC_cseries/20-12-17_FS_id180'])
-# dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-17_N1-2x5xCTC_cseries/20-12-17_FS_id180_occ-newcorr'])
-
-### N != 1, 5xCTC@400ms & T=23C
-dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-18_N2-5xCTC_cseries/20-12-18_FS_id194'])
-# dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-18_N2-5xCTC_cseries/20-12-18_FS_id194_occ-newcorr'])
-
-### S1_5xCTC adapter @200ms&400ms & T=23C
-# dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-10_N1-5xCTC_cseries_varexp/21-01-19_FS_id163_exp200'])
-# dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-10_N1-5xCTC_cseries_varexp/21-01-19_FS_id163_exp400'])
+### N=2, 5xCTC
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-18_N2-5xCTC_cseries/20-12-18_FS_id194_new'])
+### N=4, 5xCTC
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-01-28_higherN-5xCTC_cseries/20-01-28_JS_N4_new'])
+### N=6, 5xCTC
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-01-28_higherN-5xCTC_cseries/21-01-28_JS_N6_new'])
 
 
 #################### Load data
+w_str = '1111100'
 ### Load obsol and infophotons
-obsol_paths = [os.path.join(dir_name,'_obsol.hdf5') for dir_name in dir_names]
+obsol_paths = [os.path.join(dir_name,'_obsol-%s.hdf5'%w_str) for dir_name in dir_names]
 obsol = pd.concat([pd.DataFrame(io.load_locs(p)[0]) for p in obsol_paths])
 obsol_info = [io.load_locs(p)[1] for p in obsol_paths]
 ### Load file_lists
@@ -55,31 +37,30 @@ files = pd.concat([pd.read_csv(p) for p in files_paths])
 Analyze
 '''
 ####################
-obsol_comb = solve.combine_obsol(obsol) 
+query_str = 'vary <= 5000 and nn_d > 5'
 
-###################### Preselect which measurements are taken into account
-varies = np.unique(obsol.vary)
+### Combine
+obsol_combined = solve.combine_obsol(obsol)
+# print()
+# print('Combined solutions:')
+# solve.print_solutions(obsol_combined)
 
-query_str = 'vary in @varies'
+### Ensemble solution
+obsol_ensemble, obsol_ensemble_combined = solve.get_obsols_ensemble(obsol.query(query_str),[1,1,0,0,0,0,0])
+# print()
+# print('Ensemble solution:')
+# solve.print_solutions(obsol_ensemble_combined)
 
-sub = obsol.query(query_str)
-sub_comb = solve.combine_obsol(sub)                                                  # Combined solutions
-sub_ensemble = solve.get_obsol_ensemble(sub,weights = [np.nan])   # Old fitting approach
-sub_old = solve.N_via_ensemble(sub,sub_ensemble)                            # Assign koff,kon&N based on old method
 
-solve.print_solutions(sub_comb)
-solve.print_solutions(sub_ensemble)
-
-##################### Plotting
-varies = varies
-field = 'N'
-bins = np.linspace(0,4,100)
+#################### Plot anything
+bins = np.linspace(0,10,70)
 # bins = 'fd'
 
-f = plt.figure(0,figsize = [4.5,3.5])
+field = 'N'
+query_str = 'setting == 6 and vary >= 1250 and nn_d > 5 and N > 0'
+
+f = plt.figure(0,figsize = [4,3])
 f.clear()
 ax = f.add_subplot(111)
-# ax.hist(sub_old.query('vary in @varies and nn_d > 5')[field],bins=bins,histtype='step',ec='grey',lw=1.5)
-ax.hist(sub.query('vary in @varies and nn_d > 5')[field],bins=bins,histtype='step',ec='darkblue',lw=1.5)
-ax.set_xlabel('N')
-
+ax.hist(obsol.query(query_str)[field],bins=bins,histtype='step')
+ax.hist(obsol_ensemble.query(query_str)[field],bins=bins,histtype='step')

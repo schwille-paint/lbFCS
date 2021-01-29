@@ -8,15 +8,12 @@ plt.style.use('~/lbFCS/styles/paper.mplstyle')
 #%%
 #################### Define parameters
 params = {}
-### 5xCTC @exp400 & kon17e6
-# params['dir_name'] = '/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-01-22_Simulation/5xCTC_exp400_T23_kon17e6/N02'
-### 5xCTC @exp400 & kon30e6
-# params['dir_name'] = '/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-01-28_Simulation_meanvarI-test/5xCTC_exp400_T23_kon30e6/N04'
-### 5xCTC @exp200 & kon30e6
-# params['dir_name'] = '/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-01-28_Simulation_meanvarI-test/5xCTC_exp200_T23_kon30e6/N04'
-
-### Experimental data
-params['dir_name'] = '/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-18_N2-5xCTC_cseries/20-12-18_FS_id194_meanvarI-test'
+### N=2, 5xCTC
+# params['dir_name'] = '/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-18_N2-5xCTC_cseries/20-12-18_FS_id194_new'
+### N=4, 5xCTC
+# params['dir_name'] = '/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-01-28_higherN-5xCTC_cseries/20-01-28_JS_N4_new'
+### N=4, 5xCTC
+params['dir_name'] = '/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-01-28_higherN-5xCTC_cseries/21-01-28_JS_N6_new'
 
 params['exp'] = 0.4
 params['exclude_rep'] = []
@@ -44,17 +41,17 @@ print('Combined solutions:')
 solve.print_solutions(obsol_combined)
 
 ### Ensemble solution
-obsol_ensemble, obsol_ensemble_combined = solve.get_obsols_ensemble(obsol.query('vary <= 625 and nn_d > 5'),[1,1,0,0,0,0,0])
+obsol_ensemble, obsol_ensemble_combined = solve.get_obsols_ensemble(obsol.query('vary <= 1251 and nn_d > 5'),[1,1,0,0,0,0,0])
 print()
 print('Ensemble solution:')
 solve.print_solutions(obsol_ensemble_combined)
 
 #################### Plot anything
-bins = np.linspace(0,5,70)
+bins = np.linspace(0,8,70)
 # bins = 'fd'
 
 field = 'N'
-query_str = 'vary >= 625 and nn_d > 5'
+query_str = 'vary == 1251 and nn_d > 5'
 
 f = plt.figure(0,figsize = [4,3])
 f.clear()
