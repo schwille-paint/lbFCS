@@ -15,29 +15,29 @@ import picasso_addon.io as addon_io
 warnings.filterwarnings("ignore")
 
 ### Columns names used for preparing fit data from props
-PROPS_USEFIT_COLS = ['vary','tau_lin','A_lin','occ','I_ck','var_I_ck']
+PROPS_USEFIT_COLS = ['vary','tau_lin','A_lin','occ','I_ck','var_I_ck','tau_d','n_events','ignore','M']
 
 ### Columns of obsol
 OBSSOL_COLS = (['setting','vary','rep','group']
-               +['tau','A','occ','I','var_I'] 
+               +['tau','A','occ','I','var_I','taud','events'] 
                + ['koff','konc','N','eps','n_points','success']
                + ['snr','sx','sy']
                + ['x','y','nn_d','frame','std_frame']
-               + ['M','exp','date'])
+               + ['ignore','M','exp','date'])
 ### Columns transferred from props to obsol
 OBS_COLS = (['setting','vary','rep','group']
-            + ['tau_lin','A_lin','occ','I_ck','var_I_ck']
+            + ['tau_lin','A_lin','occ','I_ck','var_I_ck','tau_d','n_events']
             + ['bg','sx','sy']
             + ['x','y','nn_d','frame','std_frame']
-            + ['M','date'])
+            + ['ignore','M','date'])
 ### New names of columns transferred from props
 OBS_COLS_NEWNAME = (['setting','vary','rep','group'] 
-                    + ['tau','A','occ','I','var_I']
+                    + ['tau','A','occ','I','var_I','taud','events']
                     + ['snr','sx','sy']
                     + ['x','y','nn_d','frame','std_frame']
-                    + ['M','date'])
+                    + ['ignore','M','date'])
 ### Columns names used for preparing fit data from obs
-OBS_USEFIT_COLS = ['vary','tau','A','occ','I','var_I']
+OBS_USEFIT_COLS = ['vary','tau','A','occ','I','var_I','taud','events','ignore','M']
 
 ### Dict for obsol type conversion
 OBSOL_TYPE_DICT = {'setting':np.uint16,
@@ -50,6 +50,8 @@ OBSOL_TYPE_DICT = {'setting':np.uint16,
                                    'occ':np.float32,
                                    'I':np.float32,
                                    'var_I':np.float32,
+                                   'taud':np.float32,
+                                   'events':np.float32,
                                    #
                                    'koff':np.float32,
                                    'konc':np.float32,
@@ -66,8 +68,9 @@ OBSOL_TYPE_DICT = {'setting':np.uint16,
                                    'y':np.float32,
                                    'nn_d':np.float32,
                                    'frame':np.float32,
-                                   'std_frame':np.float32,
+                                   'std_frame':np.float32,  
                                    #
+                                   'ignore':np.uint8,
                                    'M':np.uint16,
                                    'exp':np.float32,
                                    'date':np.uint32,
@@ -208,6 +211,17 @@ def var_I_func(koff,konc,N,eps,var_I_meas):
     var_I = var_I - var_I_meas
     return var_I
 
+@numba.jit(nopython=True, nogil=True, cache=False)
+def taud_func(konc,N,taud_meas): return 1/(N*konc) - taud_meas
+
+@numba.jit(nopython=True, nogil=True, cache=False)
+def events_func(frames,ignore,koff,konc,N,events_meas):
+    p = p_func(koff,konc,CORR)
+    darktot = np.abs(1-p)**N * frames             # Expected sum of dark times
+    taud    = taud_func(konc,N,0)                     # Mean dark time
+    events  = darktot / (taud + ignore +.5)      # Expected number of events
+    return events - events_meas
+
 #%%
 @numba.jit(nopython=True, nogil=True, cache=False)
 def create_eqs(x,data, weights):
@@ -238,10 +252,17 @@ def create_eqs(x,data, weights):
             system[eq_idx]      = ( w[0] / data[c_idx,1] ) * tau_func(x[n],x[i],data[c_idx,1])
             system[eq_idx+1] = ( w[1] / data[c_idx,2] ) * A_func(x[n],x[i],x[n+1],data[c_idx,2])
             system[eq_idx+2] = ( w[2] / data[c_idx,3] ) * occ_func(x[n],x[i],x[n+1],data[c_idx,3])
+            
             system[eq_idx+3] = ( w[3] / data[c_idx,4] ) * I_func(x[n],x[i],x[n+1],x[n+2],data[c_idx,4])
             system[eq_idx+4] = ( w[4] / data[c_idx,5] ) * var_I_func(x[n],x[i],x[n+1],x[n+2],data[c_idx,5])
             
-            eq_idx += 5
+            system[eq_idx+5] = ( w[5] / data[c_idx,6] ) * taud_func(x[i],x[n+1],data[c_idx,6])
+            system[eq_idx+6] = ( w[6] / data[c_idx,7] ) * events_func(data[c_idx,-1],data[c_idx,-2],x[n],x[i],x[n+1],data[c_idx,7])
+            
+            eq_idx += 7
+    
+    ### Remove NaNs, can only occur in taud and events!
+    system[np.isnan(system)] = 0
     
     return system
 
@@ -432,7 +453,11 @@ def print_solutions(df):
 
 #%%
 def save_series(files, obs, params):
-    savepath_obs = os.path.join(params['dir_name'],'_obsol.hdf5')
+    
+    w_str = ''
+    for w in params['weights']: w_str += str(w)
+    
+    savepath_obs = os.path.join(params['dir_name'],'_obsol-%s.hdf5'%w_str)
     savepath_files = os.path.join(params['dir_name'],'_files.csv')
     
     addon_io.save_locs(savepath_obs,
