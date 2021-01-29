@@ -15,29 +15,29 @@ import picasso_addon.io as addon_io
 warnings.filterwarnings("ignore")
 
 ### Columns names used for preparing fit data from props
-PROPS_USEFIT_COLS = ['vary','tau_lin','A_lin','n_locs','tau_d','n_events'] + ['ignore','M'] 
+PROPS_USEFIT_COLS = ['vary','tau_lin','A_lin','occ','I_ck','var_I_ck']
 
 ### Columns of obsol
 OBSSOL_COLS = (['setting','vary','rep','group']
-               +['tau','A','occ','taud','events'] 
-               + ['koff','konc','N','n_points','success']
-               + ['B','eps','snr','sx','sy']
+               +['tau','A','occ','I','var_I'] 
+               + ['koff','konc','N','eps','n_points','success']
+               + ['snr','sx','sy']
                + ['x','y','nn_d','frame','std_frame']
-               + ['ignore','M','exp','date'])
+               + ['M','exp','date'])
 ### Columns transferred from props to obsol
 OBS_COLS = (['setting','vary','rep','group']
-            + ['tau_lin','A_lin','n_locs','tau_d','n_events']
-            + ['B','bg','sx','sy']
+            + ['tau_lin','A_lin','occ','I_ck','var_I_ck']
+            + ['bg','sx','sy']
             + ['x','y','nn_d','frame','std_frame']
-            + ['ignore','M','date'])
+            + ['M','date'])
 ### New names of columns transferred from props
 OBS_COLS_NEWNAME = (['setting','vary','rep','group'] 
-                    + ['tau','A','occ','taud','events']
-                    + ['B','snr','sx','sy']
+                    + ['tau','A','occ','I','var_I']
+                    + ['snr','sx','sy']
                     + ['x','y','nn_d','frame','std_frame']
-                    + ['ignore','M','date'])
+                    + ['M','date'])
 ### Columns names used for preparing fit data from obs
-OBS_USEFIT_COLS = ['vary','tau','A','occ','taud','events'] + ['ignore','M']
+OBS_USEFIT_COLS = ['vary','tau','A','occ','I','var_I']
 
 ### Dict for obsol type conversion
 OBSOL_TYPE_DICT = {'setting':np.uint16,
@@ -48,17 +48,16 @@ OBSOL_TYPE_DICT = {'setting':np.uint16,
                                    'tau':np.float32,
                                    'A':np.float32,
                                    'occ':np.float32,
-                                   'taud':np.float32,
-                                   'events':np.float32,
+                                   'I':np.float32,
+                                   'var_I':np.float32,
                                    #
                                    'koff':np.float32,
                                    'konc':np.float32,
                                    'N':np.float32,
+                                   'eps':np.float32,
                                    'n_points':np.uint8,
                                    'success':np.uint8,
                                    #
-                                   'B':np.float32,
-                                   'eps':np.float32,
                                    'snr':np.float32,
                                    'sx':np.float32,
                                    'sy':np.float32,
@@ -70,7 +69,6 @@ OBSOL_TYPE_DICT = {'setting':np.uint16,
                                    'std_frame':np.float32,
                                    #
                                    'M':np.uint16,
-                                   'ignore':np.uint8,
                                    'exp':np.float32,
                                    'date':np.uint32,
                                    }
@@ -133,7 +131,7 @@ def prefilter(df_in):
         return df
     
     df = df_in.copy()
-    obs = ['tau_lin','A_lin','n_locs','tau_d','n_events'] 
+    obs = ['tau_lin','A_lin','occ','I','var_I','I_ck','var_I_ck'] 
     
     df = df[np.all(np.isfinite(df[obs]),axis=1)]                # Remove NaNs from all observables
     df = df[(np.abs(df.tau_lin-df.tau)/df.tau_lin) < 0.2]  # Deviation between two ac-fitting modes should be small
@@ -147,7 +145,7 @@ def prefilter(df_in):
     df = it_medrange(df,'A_lin'  ,[100,5])
     df = it_medrange(df,'A_lin'    ,[2,5])
                      
-    df = it_medrange(df,'n_locs'   ,[5,5])
+    df = it_medrange(df,'occ'   ,[5,5])
     
     return df
 
@@ -176,6 +174,7 @@ def prep_data(df):
 
 #%%
 ### Analytic expressions for observables
+CORR = 1
 
 @numba.jit(nopython=True, nogil=True, cache=False)
 def tau_func(koff,konc,tau_meas): return 1 / (koff+konc) - tau_meas
@@ -184,22 +183,30 @@ def tau_func(koff,konc,tau_meas): return 1 / (koff+konc) - tau_meas
 def A_func(koff,konc,N,A_meas): return koff / (konc*N) - A_meas
 
 @numba.jit(nopython=True, nogil=True, cache=False)
+def p_func(koff,konc,corr): 
+    p = ( 1/koff + corr ) / ( 1/koff + 1/konc )
+    return p
+
+@numba.jit(nopython=True, nogil=True, cache=False)
 def occ_func(koff,konc,N,occ_meas):
-    p   = ( 1/koff + 1 ) / ( 1/koff + 1/konc ) # Probability of bound imager                                 CORRECTION TERM CHANGED!!!!!
+    p = p_func(koff,konc,CORR)
     occ = 1 - np.abs(1-p)**N
     occ = occ - occ_meas
     return occ
 
 @numba.jit(nopython=True, nogil=True, cache=False)
-def taud_func(konc,N,taud_meas): return 1/(N*konc) - taud_meas
+def I_func(koff,konc,N,eps,I_meas):
+    p = p_func(koff,konc,CORR)
+    I = eps * N * p
+    I = I - I_meas
+    return I
 
 @numba.jit(nopython=True, nogil=True, cache=False)
-def events_func(frames,ignore,koff,konc,N,events_meas):
-    p       = ( 1/koff + 1 ) / ( 1/koff + 1/konc )   # Probability of bound imager
-    darktot = np.abs(1-p)**N * frames             # Expected sum of dark times
-    taud    = taud_func(konc,N,0)                     # Mean dark time
-    events  = darktot / (taud + ignore +.5)      # Expected number of events
-    return events - events_meas
+def var_I_func(koff,konc,N,eps,var_I_meas):
+    p = p_func(koff,konc,CORR)
+    var_I = eps**2 * N * p * (1-p)
+    var_I = var_I - var_I_meas
+    return var_I
 
 #%%
 @numba.jit(nopython=True, nogil=True, cache=False)
@@ -211,7 +218,7 @@ def create_eqs(x,data, weights):
     cs = np.unique(data[:,0])   # 1st row of data corresponds to concentration
     n = len(cs)                         # Unique concentrations equals number of koncs for system
     
-    ### Unkown in system: x = [konc_1,konc_2,...,konc_n,koff,N]
+    ### Unkown in system: x = [konc_1,konc_2,...,konc_n,koff,N,eps]
     ###  -> x can only be positive
     x = np.abs(x) 
         
@@ -219,7 +226,7 @@ def create_eqs(x,data, weights):
     ### This means for weight = 1 a standard deviation of 1% is assumed in data_meas.
     w = weights * 100
     
-    ### Initialize equation system consisting of 5 equations (i.e: tau,A,occ,tau_d,n_events) for every measurement
+    ### Initialize equation system consisting of 5 equations (i.e: tau,A,occ,I,var_I) for every measurement
     system = np.zeros(len(data)*len(weights))
     eq_idx = 0
     
@@ -231,8 +238,8 @@ def create_eqs(x,data, weights):
             system[eq_idx]      = ( w[0] / data[c_idx,1] ) * tau_func(x[n],x[i],data[c_idx,1])
             system[eq_idx+1] = ( w[1] / data[c_idx,2] ) * A_func(x[n],x[i],x[n+1],data[c_idx,2])
             system[eq_idx+2] = ( w[2] / data[c_idx,3] ) * occ_func(x[n],x[i],x[n+1],data[c_idx,3])
-            system[eq_idx+3] = ( w[3] / data[c_idx,4] ) * taud_func(x[i],x[n+1],data[c_idx,4])
-            system[eq_idx+4] = ( w[4] / data[c_idx,5] ) * events_func(data[c_idx,-1],data[c_idx,-2],x[n],x[i],x[n+1],data[c_idx,5])
+            system[eq_idx+3] = ( w[3] / data[c_idx,4] ) * I_func(x[n],x[i],x[n+1],x[n+2],data[c_idx,4])
+            system[eq_idx+4] = ( w[4] / data[c_idx,5] ) * var_I_func(x[n],x[i],x[n+1],x[n+2],data[c_idx,5])
             
             eq_idx += 5
     
@@ -240,21 +247,29 @@ def create_eqs(x,data, weights):
 
 #%%
 @numba.jit(nopython=True, nogil=True, cache=False)
-def estimate_unknowns(data):
+def estimate_unknowns(data,weights):
     '''
     Get estimate x0 for unknowns x based on data to feed into fit as initial value x0.
     Return unique concentration points in data.
     '''
-    cs = np.unique(data[:,0])                                # 1st row of data corresponds to concentration
-    n = len(cs)                                                      # Unique concentrations equals number of koncs for system
-    x0 = np.zeros(n+2,dtype=np.float32)           # Init estimate
+    cs = np.unique(data[:,0])                                   # 1st row of data corresponds to concentration
+    n = len(cs)                                                          # Unique concentrations equals number of koncs for system
+    fit_eps = (weights[3] > 0) | (weights[4] > 0)     # Fit eps value if I or var_I have contributions in equation system
+    
+    x0 = np.zeros(n+3,dtype=np.float32)           # Init estimate
+    
     ### Estimate for koncs
     for i,c in enumerate(cs): x0[i] = 5e6 * (c * 1e-12) * 0.4
     ### Estimate for koff
     tau_max = np.max(data[data[:,0]==cs[0],1]) # Maximum tau @ lowest concentration
     x0[n] = 1 / tau_max
     ### Estimate for N
-    x0[n+1] = 4 
+    x0[n+1] = 4
+    ### Estimate for eps
+    if fit_eps:
+        x0[n+2] = 400
+    else:
+        x0[n+2] = 0
     
     return x0,cs,n
     
@@ -266,7 +281,7 @@ def solve_eqs(data,weights):
     weights = np.array(weights,dtype=np.float32)
     
     ### Get estimate x0 and unique concentrations cs and number of unique concentrations n
-    x0,cs,n = estimate_unknowns(data)
+    x0,cs,n = estimate_unknowns(data,weights)
     
     ### Solve system of equations
     xopt = optimize.least_squares(lambda x: create_eqs(x,data,weights),
@@ -278,13 +293,6 @@ def solve_eqs(data,weights):
     success = xopt.success
     
     return x, success, cs, n
-
-#%%
-def eps_func(B,koff,tau):
-    b0 = 0.9973
-    b1 = -0.315
-    eps = B / (koff * (b0*tau + b1) )
-    return eps
 
 #%%
 def snr_func(eps,bg,sx,sy):
@@ -317,12 +325,16 @@ def obsol(df,weights):
     ### Assign solution
     obs.koff = x[n]
     obs.N = x[n+1]
+    obs.eps = x[n+2]                                                   # If 0 weights were assigned to both I and var_I eps = 0 at this point -> see also estimate_unkowns()
     for i,c in enumerate(cs): obs.loc[obs.vary==c,'konc'] = x[i]
     obs.n_points = len(df)
     obs.success = int(success)
+    
     ### Assign photon related observables
-    obs.eps = eps_func(obs.B, obs.koff, obs.tau)
-    obs.snr = snr_func(obs.eps,obs.snr,obs.sx,obs.sy) # At this point bg is assigned to snr!
+    fit_eps = (weights[3] > 0) | (weights[4] > 0)          # Was eps fitted by using either I or var_I?
+    if not fit_eps:
+        obs.eps = obs.I / (obs.N * p_func(obs.koff.values,obs.konc.values,CORR))
+    obs.snr = snr_func(obs.eps,obs.snr,obs.sx,obs.sy) # Before this line value of snr corresponded to bg!
     
     return obs
 
@@ -363,7 +375,7 @@ def get_obsol(props, exp, weights, solve_mode):
     return df
     
 #%%
-def obs_ensemble(df_in):
+def combine(df_in,success_only):
     '''
     Prepare ensemble data from obsol of individual groups.
     '''
@@ -371,7 +383,8 @@ def obs_ensemble(df_in):
     s_out = pd.Series(index=OBSSOL_COLS)
     
     ### Reduce to groups which could be successfully fitted
-    df = df_in[df_in.success == 1]
+    if success_only: df = df_in[df_in.success == 1]
+    else: df = df_in.copy()
     
     ### Compute ensemble observables
     for c in OBSSOL_COLS:
@@ -391,7 +404,7 @@ def combine_obsol(obsol_per_group):
     '''
     Group obsol by (setting,rep) and get ensemble means and medians.
     '''
-    df = obsol_per_group.groupby(['date','setting','exp','vary','rep']).apply(lambda df: obs_ensemble(df))
+    df = obsol_per_group.groupby(['date','setting','exp','vary','rep']).apply(lambda df: combine(df,success_only=True))
     df = df.droplevel( level = ['date','exp','vary','rep'])
     df = df.drop(columns = ['setting'])
     df = df.reset_index()
@@ -468,12 +481,12 @@ def solve_eqs_old(data):
         
     return popt, success
 #%%
-def obsol_ensemble(obsol,weights):
+def obsol_ensemble_combine(obsol,weights):
     '''
-    Create final output for ensemble including observables and solution.
+    Combine group-wise observables to ensemble observables and solve.
     '''
-    ### For every setting group according to (vary,rep)
-    df = obsol.groupby(['vary','rep']).apply(obs_ensemble)
+    ### For every setting group according to (vary,rep) and combine observables
+    df = obsol.groupby(['vary','rep']).apply(lambda df: combine(df,success_only=False))
     
     ### Prepare output
     setting = df.setting.values
@@ -495,44 +508,68 @@ def obsol_ensemble(obsol,weights):
         ### Assign solution
         obs.koff = x[n]
         obs.N = x[n+1]
+        obs.eps = x[n+2]
         for i,c in enumerate(cs): obs.loc[obs.vary==c,'konc'] = x[i]
         obs.success = int(success)
     else:                                                                                         # Old fitting approach for ill defined weights
         popt,success = solve_eqs_old(data)
         obs.koff = popt[0]
-        obs.N = np.nan
         obs.konc = popt[1] * obs.vary
+        obs.N = np.nan
+        obs.eps = np.nan
         
     return obs
 
 #%%
-def get_obsol_ensemble(obsol_per_group, weights):
+def apply_ensemble(obs,obs_ensemble):
     '''
-    Groupby and apply obsol_ensemble(). For the ensemble solution always complete series for one setting is used.
+    Apply rates koff&konc obtained from ensemble solution to obsol to compute group-wise N (using A) and eps/snr (using I).
     '''
-    df = obsol_per_group.groupby(['date','setting']).apply(lambda df: obsol_ensemble(df,weights))
-    df = df.droplevel( level = ['date','setting'])
+    df = obs.copy()
     
-    df = df.astype(OBSOL_TYPE_DICT)
+    ### Search for correct measurement in ensemble solution (obs_ensemble) and get rates
+    date = obs.date.iloc[0]
+    setting = obs.setting.iloc[0]
+    vary = obs.vary.iloc[0]
+    rep = obs.rep.iloc[0]
+    s = obs_ensemble.query('date==@date and setting==@setting and vary==@vary and rep==@rep')
+    
+    koff = float(s.koff)
+    konc = float(s.konc)
+    
+    ### Assign ensemble rates koff&konc to groups and calculate group-wise N and eps 
+    df.koff = koff
+    df.konc = konc
+    df.N = (1/df.A) * (koff/konc)
+    ### First we have to convert snr back to bg 
+    df.snr = (df.eps / (2*np.pi*df.sx*df.sy) ) * (1/df.snr)                          # Now snr corresponds to bg again
+    df.eps = df.I / (df.N * p_func(df.koff.values,df.konc.values,CORR))   # Assign new eps based on ensemble rates
+    df.snr = snr_func(df.eps,df.snr,df.sx,df.sy)                                        # Assign new snr based on new eps
     
     return df
 
 #%%
-def N_via_ensemble(obs,obs_ensemble):
+def get_obsols_ensemble(obs, weights):
     '''
-    Returns number of docking strands N as calculated using ensemble series approach.
+    Groupby and apply obsol_ensemble(). For the ensemble solution always complete series for one setting is used.
     '''
-    ### Get ensemble rates
-    kon = np.mean(obs_ensemble.konc/obs_ensemble.vary)
-    konc = kon*obs.vary
-    koff = np.mean(obs_ensemble.koff)
-    ### Compute number of docking strands based on ensemble rates
-    N = (1/obs.A) * (koff/(konc))
-    ### Init and assign to output
-    df_out = obs.copy()
-    df_out.koff = koff
-    df_out.konc = konc
-    df_out.N = N
+    ### Get ensemble solution
+    obs_ensemble_combined = obs.groupby(['date','setting']).apply(lambda df: obsol_ensemble_combine(df,weights))
+    obs_ensemble_combined = obs_ensemble_combined.droplevel( level = ['date','setting'])
+    obs_ensemble_combined = obs_ensemble_combined.astype(OBSOL_TYPE_DICT)
     
-    return df_out
+    ### Assign ensemble rates to group-wise solution and calulate group-wise N, eps&snr using ensemble rates
+    obs_ensemble = obs.groupby(['date','setting','vary','rep']).apply(lambda df: apply_ensemble(df,obs_ensemble_combined))
+    obs_ensemble = obs_ensemble.droplevel( level = ['date','setting','vary','rep'])
+    obs_ensemble = obs_ensemble.astype(OBSOL_TYPE_DICT)
+    
+    ### Combine again to update N,eps&snr
+    obs_ensemble_combined = obs_ensemble.groupby(['date','setting','exp','vary','rep']).apply(lambda df: combine(df,success_only=False))
+    obs_ensemble_combined = obs_ensemble_combined.droplevel( level = ['date','exp','vary','rep'])
+    obs_ensemble_combined = obs_ensemble_combined.drop(columns = ['setting'])
+    obs_ensemble_combined = obs_ensemble_combined.reset_index()
+    obs_ensemble_combined = obs_ensemble_combined.astype(OBSOL_TYPE_DICT)
+    
+    return obs_ensemble, obs_ensemble_combined
+
     

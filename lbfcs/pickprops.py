@@ -195,30 +195,24 @@ def props_fcs(df,NoFrames,max_it=1):
     """
     
     ############################# Get trace and ac
-    trace,ac       = trace_and_ac(df,NoFrames)
+    trace,ac = trace_and_ac(df,NoFrames)
     trace_ck,ac_ck = trace_and_ac(df,NoFrames,field = 'photons_ck') # Trace with applied Chung-Kennedy Filter
-    trace_ng,ac_ng = trace_and_ac(df,NoFrames,field = 'net_gradient') # Trace of net_gradient
-    
-    ac_zeros = np.sum(ac[1:,1]<0.1) # Number of lagtimes with almost zero ac values, can be used for filtering
     
     ############################# Get autocorrelation fit results
-    A,tau         = fit_ac(ac,max_it)[:2]
-    A_lin,tau_lin = fit_ac_lin(ac,max_it)[:2]
-    A_lin_ck,tau_lin_ck = fit_ac_lin(ac_ck,max_it)[:2] # Fit of autocorrelation with applied Chung-Kennedy Filter
+    A,tau = fit_ac(ac,max_it)[:2]                  # Non-linear fit with exponential
+    A_lin,tau_lin = fit_ac_lin(ac,max_it)[:2]  # Linearized fit
     
-    ############################# Calculate brightness value B using trace
-    B = np.var(trace)/np.mean(trace)
-    B_ck = np.var(trace_ck)/np.mean(trace_ck)  # Brightness of Chung-Kennedy filtered trace
-    B_ng = np.var(trace_ng)/np.mean(trace_ng) # Brightness of net_gradient trace
+    ############################# Calculate mean (I) and variance (var_I) of traces
+    I = np.mean(trace)           # Unfiltered trace
+    var_I = np.var(trace)
+    I_ck = np.mean(trace_ck) # Chung-Kennedy filtered trace
+    var_I_ck = np.var(trace_ck)
     
     ############################# Assignment to series 
-    s_out=pd.Series({'ac_zeros':ac_zeros,                       # Number of almost zeros entries in AC
-                     'A':A,'tau':tau,                                            # AC fit 
+    s_out=pd.Series({'A':A,'tau':tau,                                # AC fit 
                      'A_lin':A_lin,'tau_lin':tau_lin,                       # AC linear fit
-                     'A_lin_ck':A_lin_ck,'tau_lin_ck':tau_lin_ck,  # Chung-Kennedy-AC linear fit
-                     'B':B,                                                          # Brightness
-                     'B_ck':B_ck,                                                # Brightness of Chung-Kennedy filtered trace
-                     'B_ng':B_ng,                                               # Brightness of net_gradient trace
+                     'I':I,'var_I':var_I,                                          # I and var_I
+                     'I_ck':I_ck,'var_I_ck':var_I_ck,                     # I and var_I of Chung-Kennedy filtered trace
                      }) 
     
     return s_out
@@ -247,10 +241,10 @@ def darkbright_times(df,ignore):
     dframes=dframes.astype(float)   # Convert to float values for later multiplications
     
     tau_d_dist=dframes-1 # 1) We have to substract -1 to get real dark frames, e.g. suppose it was bright at frame=2 and frame=4
-                         #    4-2=2 but there was actually only one dark frame.
-                         #
-                         # 2) Be aware that counting of gaps starts with first bright localization and ends with last
-                         #    since values before or after are anyway artificially shortened, i.e. one bright event means no dark time!
+                                        #    4-2=2 but there was actually only one dark frame.
+                                        #
+                                        # 2) Be aware that counting of gaps starts with first bright localization and ends with last
+                                        #    since values before or after are anyway artificially shortened, i.e. one bright event means no dark time!
     
     tau_d_dist=tau_d_dist[tau_d_dist>(ignore)] # Remove all dark times <= ignore
     tau_d_dist=np.sort(tau_d_dist)             # Sorted tau_d distribution
@@ -349,9 +343,9 @@ def props_qpaint(df,ignore,mode='ralf'):
 
     ###################################################### Assignment to series 
     s_out=pd.Series({'tau_b':tau_b,'tau_b_off':tau_b_off,'tau_b_a':tau_b_a, # Bright times
-                     'tau_d':tau_d,'tau_d_off':tau_d_off,'tau_d_a':tau_d_a, # Dark times
-                     'n_events':n_events,                                   # Events
-                     'ignore':ignore,                                       # Used ignore value 
+                     'tau_d':tau_d,'tau_d_off':tau_d_off,'tau_d_a':tau_d_a,             # Dark times
+                     'n_events':n_events,                                                               # Events
+                     'ignore':ignore,                                                                       # Used ignore value 
                      }) 
     return s_out
 
@@ -365,12 +359,12 @@ def props_other(df,NoFrames):
     s_out=df.mean()
     
     ### Localizations
-    s_out['n_locs']=len(df)/NoFrames # append no. of locs. per frame
+    s_out['occ'] = len(df)/NoFrames # append no. of locs. per frame
     
     ### Photons
-    s_out[['photons','bg']]=df[['photons','bg']].mean()
-    s_out['std_photons']=df['photons'].std(ddof=0)   # Biased standard deviation
-    s_out['std_bg']=df['bg'].std(ddof=0)             # Biased standard deviation
+    s_out[['photons','bg']] = df[['photons','bg']].mean()
+    s_out['std_photons'] = df['photons'].std(ddof=0)   # Biased standard deviation
+    s_out['std_bg'] = df['bg'].std(ddof=0)             # Biased standard deviation
     
     ### Set lpx and lpy to standard deviation in x,y for proper visualization in picasso.render
     s_out[['lpx','lpy',]]=df[['x','y']].std()
