@@ -546,7 +546,29 @@ def obsol_ensemble_combine(obsol,weights):
     return obs
 
 #%%
-def apply_ensemble(obs,obs_ensemble):
+def N_from_rates(df,cols):
+    
+    koff = df.koff.values
+    konc = df.konc.values
+    eps = df.eps.values
+    p = p_func(koff,konc,CORR)
+    
+    A = df.A.values
+    occ = df.occ.values
+    I = df.I.values
+    
+    Ns = np.zeros((len(df),3))
+    Ns[:,0] = (1 / A) * (koff / konc)
+    Ns[:,1] = np.log(1 - occ) / np.log(1 - p)
+    Ns[:,2] = I / (eps * p)
+
+    Ns[np.isinf(Ns)] = np.nan
+    N = np.nanmean(Ns[:,cols], axis = 1)
+    
+    return N
+    
+#%%
+def apply_ensemble(obs,obs_ensemble,Ncols):
     '''
     Apply rates koff&konc obtained from ensemble solution to obsol to compute group-wise N (using A) and eps/snr (using I).
     '''
@@ -562,19 +584,21 @@ def apply_ensemble(obs,obs_ensemble):
     koff = float(s.koff)
     konc = float(s.konc)
     
-    ### Assign ensemble rates koff&konc to groups and calculate group-wise N and eps 
+    ### Assign ensemble rates koff&konc to groups
     df.koff = koff
     df.konc = konc
-    df.N = (1/df.A) * (koff/konc)
+    ### Assign eps and snr based on rates
     ### First we have to convert snr back to bg 
-    df.snr = (df.eps / (2*np.pi*df.sx*df.sy) ) * (1/df.snr)                          # Now snr corresponds to bg again
-    df.eps = df.I / (df.N * p_func(df.koff.values,df.konc.values,CORR))   # Assign new eps based on ensemble rates
-    df.snr = snr_func(df.eps,df.snr,df.sx,df.sy)                                        # Assign new snr based on new eps
+    df.snr = (df.eps / (2*np.pi*df.sx*df.sy) ) * (1/df.snr)                                        # Now snr corresponds to bg again
+    df.eps = df.var_I / (df.I * (1 - p_func(df.koff.values,df.konc.values,CORR)) )   # Assign new eps based on ensemble rates
+    df.snr = snr_func(df.eps,df.snr,df.sx,df.sy)                                                     # Assign new snr based on new eps
+    ### Assign N based on rates
+    df.N = N_from_rates(df,Ncols)
     
     return df
 
 #%%
-def get_obsols_ensemble(obs, weights):
+def get_obsols_ensemble(obs, weights, Ncols):
     '''
     Groupby and apply obsol_ensemble(). For the ensemble solution always complete series for one setting is used.
     '''
@@ -584,7 +608,7 @@ def get_obsols_ensemble(obs, weights):
     obs_ensemble_combined = obs_ensemble_combined.astype(OBSOL_TYPE_DICT)
     
     ### Assign ensemble rates to group-wise solution and calulate group-wise N, eps&snr using ensemble rates
-    obs_ensemble = obs.groupby(['date','setting','vary','rep']).apply(lambda df: apply_ensemble(df,obs_ensemble_combined))
+    obs_ensemble = obs.groupby(['date','setting','vary','rep']).apply(lambda df: apply_ensemble(df,obs_ensemble_combined,Ncols))
     obs_ensemble = obs_ensemble.droplevel( level = ['date','setting','vary','rep'])
     obs_ensemble = obs_ensemble.astype(OBSOL_TYPE_DICT)
     

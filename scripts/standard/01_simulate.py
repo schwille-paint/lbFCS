@@ -5,27 +5,26 @@ import lbfcs
 import lbfcs.simulate as simulate
 
 ### Define system constants
-reps = 3000
-M = [4500]*3
+reps = 1000
+M = [4500]*3 + [9000]*2
 CycleTime = 0.4
 
-N = 1
-koff = [1.10e-1, 1.12e-1, 1.16e-1]
-kon = [2.55e7, 3.27e7, 3.10e7]
-cs = [10000e-12, 5000e-12, 2500e-12]
+N = 3
+koff = 1.15e-1
+kon = 30e6
+cs = [5000e-12, 2500e-12, 1250e-12, 625e-12, 313e-12]
 
 box = 7
-e_tot = [564,570,500]
-snr = [3.5,5.1,8.4]
-sigma = 0.85
+e_tot = 400
+sigma = 0.9
 use_weight = False
 
-savedir = '/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-01-22_Simulation/N1_5xCTC_exact20201217'
+savedir = '/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-01-22_Simulation/5xCTC_exp400_T23_kon30e6_new/N03'
 #%%
 for i,c in enumerate(cs):
     ### Path and naming
     N_str=('%i'%(N)).zfill(2)
-    c_str=('%i'%(c*1e12)).zfill(5)
+    c_str=('%i'%(c*1e12)).zfill(4)
     
     savename='N%s_c%s.hdf5'%(N_str,c_str)
     savepath=os.path.join(savedir,savename)
@@ -36,11 +35,11 @@ for i,c in enumerate(cs):
                                   M[i],
                                   CycleTime,
                                   N,
-                                  koff[i],
-                                  kon[i],
+                                  koff,
+                                  kon,
                                   c,
                                   box,
-                                  e_tot[i],
-                                  snr[i], #lbfcs.snr_from_conc(c),
+                                  e_tot,
+                                  lbfcs.snr_from_conc(c),
                                   sigma,
                                   use_weight)
