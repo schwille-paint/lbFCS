@@ -15,7 +15,7 @@ import picasso_addon.io as addon_io
 warnings.filterwarnings("ignore")
 
 ### Columns names used for preparing fit data from props
-PROPS_USEFIT_COLS = ['vary','tau_lin','A_lin','occ','I_ck','var_I_ck','tau_d','n_events','ignore','M']
+PROPS_USEFIT_COLS = ['vary','tau_lin','A_lin','occ','I','var_I','tau_d','n_events','ignore','M']
 
 ### Columns of obsol
 OBSSOL_COLS = (['setting','vary','rep','group']
@@ -177,7 +177,6 @@ def prep_data(df):
 
 #%%
 ### Analytic expressions for observables
-CORR = 1
 
 @numba.jit(nopython=True, nogil=True, cache=False)
 def tau_func(koff,konc,tau_meas): return 1 / (koff+konc) - tau_meas
@@ -192,21 +191,21 @@ def p_func(koff,konc,corr):
 
 @numba.jit(nopython=True, nogil=True, cache=False)
 def occ_func(koff,konc,N,occ_meas):
-    p = p_func(koff,konc,CORR)
+    p = p_func(koff,konc,1)
     occ = 1 - np.abs(1-p)**N
     occ = occ - occ_meas
     return occ
 
 @numba.jit(nopython=True, nogil=True, cache=False)
 def I_func(koff,konc,N,eps,I_meas):
-    p = p_func(koff,konc,CORR)
+    p = p_func(koff,konc,0)
     I = eps * N * p
     I = I - I_meas
     return I
 
 @numba.jit(nopython=True, nogil=True, cache=False)
 def var_I_func(koff,konc,N,eps,var_I_meas):
-    p = p_func(koff,konc,CORR)
+    p = p_func(koff,konc,0)
     var_I = eps**2 * N * p * (1-p)
     var_I = var_I - var_I_meas
     return var_I
@@ -216,7 +215,7 @@ def taud_func(konc,N,taud_meas): return 1/(N*konc) - taud_meas
 
 @numba.jit(nopython=True, nogil=True, cache=False)
 def events_func(frames,ignore,koff,konc,N,events_meas):
-    p = p_func(koff,konc,CORR)
+    p = p_func(koff,konc,1)
     darktot = np.abs(1-p)**N * frames             # Expected sum of dark times
     taud    = taud_func(konc,N,0)                     # Mean dark time
     events  = darktot / (taud + ignore +.5)      # Expected number of events
@@ -354,7 +353,7 @@ def obsol(df,weights):
     ### Assign photon related observables
     fit_eps = (weights[3] > 0) | (weights[4] > 0)          # Was eps fitted by using either I or var_I?
     if not fit_eps:
-        obs.eps = obs.I / (obs.N * p_func(obs.koff.values,obs.konc.values,CORR))
+        obs.eps = obs.I / (obs.N * p_func(obs.koff.values,obs.konc.values,0))
     obs.snr = snr_func(obs.eps,obs.snr,obs.sx,obs.sy) # Before this line value of snr corresponded to bg!
     
     return obs
@@ -551,7 +550,8 @@ def N_from_rates(df,cols):
     koff = df.koff.values
     konc = df.konc.values
     eps = df.eps.values
-    p = p_func(koff,konc,CORR)
+    p0 = p_func(koff,konc,0)
+    p1 = p_func(koff,konc,1)
     
     A = df.A.values
     occ = df.occ.values
@@ -559,8 +559,8 @@ def N_from_rates(df,cols):
     
     Ns = np.zeros((len(df),3))
     Ns[:,0] = (1 / A) * (koff / konc)
-    Ns[:,1] = np.log(1 - occ) / np.log(1 - p)
-    Ns[:,2] = I / (eps * p)
+    Ns[:,1] = np.log(1 - occ) / np.log(1 - p1)
+    Ns[:,2] = I / (eps * p0)
 
     Ns[np.isinf(Ns)] = np.nan
     N = np.nanmean(Ns[:,cols], axis = 1)
@@ -590,7 +590,7 @@ def apply_ensemble(obs,obs_ensemble,Ncols):
     ### Assign eps and snr based on rates
     ### First we have to convert snr back to bg 
     df.snr = (df.eps.values / (2*np.pi*df.sx.values*df.sy.values) ) * (1/df.snr.values)            # Now snr corresponds to bg again
-    df.eps = df.var_I.values / (df.I.values * (1 - p_func(df.koff.values,df.konc.values,CORR)) )   # Assign new eps based on ensemble rates
+    df.eps = df.var_I.values / (df.I.values * (1 - p_func(df.koff.values,df.konc.values,0)) )   # Assign new eps based on ensemble rates
     df.snr = snr_func(df.eps.values,df.snr.values,df.sx.values,df.sy.values)                                                   # Assign new snr based on new eps
     ### Assign N based on rates
     df.N = N_from_rates(df,Ncols)
@@ -598,7 +598,7 @@ def apply_ensemble(obs,obs_ensemble,Ncols):
     return df
 
 #%%
-def get_obsols_ensemble(obs, weights, Ncols):
+def get_obsols_ensemble(obs, weights = [1,1,1,1,0,0,0], Ncols = [0,1,2]):
     '''
     Groupby and apply obsol_ensemble(). For the ensemble solution always complete series for one setting is used.
     '''
