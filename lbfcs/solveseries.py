@@ -317,9 +317,9 @@ def solve_eqs(data,weights):
 
 #%%
 def snr_func(eps,bg,sx,sy):
-    snr = eps # Total photons
-    snr /= 2*np.pi*sx*sy # Now snr corresponds to amplitude of 2D gaussian fit
-    snr /= bg # (maximum) signal to noise ratio defined as amplitude/bg
+    snr = eps.copy()      # Total photons
+    snr /= 2*np.pi*sx*sy  # Now snr corresponds to amplitude of 2D gaussian fit
+    snr /= bg             # (maximum) signal to noise ratio defined as amplitude/bg
     return snr
 
 #%%
@@ -589,9 +589,9 @@ def apply_ensemble(obs,obs_ensemble,Ncols):
     df.konc = konc
     ### Assign eps and snr based on rates
     ### First we have to convert snr back to bg 
-    df.snr = (df.eps / (2*np.pi*df.sx*df.sy) ) * (1/df.snr)                                        # Now snr corresponds to bg again
-    df.eps = df.var_I / (df.I * (1 - p_func(df.koff.values,df.konc.values,CORR)) )   # Assign new eps based on ensemble rates
-    df.snr = snr_func(df.eps,df.snr,df.sx,df.sy)                                                     # Assign new snr based on new eps
+    df.snr = (df.eps.values / (2*np.pi*df.sx.values*df.sy.values) ) * (1/df.snr.values)            # Now snr corresponds to bg again
+    df.eps = df.var_I.values / (df.I.values * (1 - p_func(df.koff.values,df.konc.values,CORR)) )   # Assign new eps based on ensemble rates
+    df.snr = snr_func(df.eps.values,df.snr.values,df.sx.values,df.sy.values)                                                   # Assign new snr based on new eps
     ### Assign N based on rates
     df.N = N_from_rates(df,Ncols)
     
