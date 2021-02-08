@@ -8,32 +8,29 @@ plt.style.use('~/lbFCS/styles/paper.mplstyle')
 #%%
 #################### Define parameters
 params = {}
-### N=2, 5xCTC
-# params['dir_name'] = '/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-18_N2-5xCTC_cseries/20-12-18_FS_id194_new'
-### N=4, 5xCTC
-# params['dir_name'] = '/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-01-28_higherN-5xCTC_cseries/20-01-28_JS_N4_new'
-### N=4, 5xCTC
-params['dir_name'] = '/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-01-28_higherN-5xCTC_cseries/21-01-28_JS_N6_new'
+params['dir_name'] = '/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-02-07_N2_a20_var/21-02-07_JS_id206'
 
 params['exp'] = 0.4
 params['exclude_rep'] = []
-params['weights']        = [1,1,1,1,1,0,0]
-params['solve_mode'] = 'single'
-
 
 #%%
-#################### Load, filter, solve, save & combine + ensemble solution
+#################### Load, filter, solve, save
 ### Load 
 props_init, file_list = solve.load_props_in_dir(params['dir_name'])
 print();print(file_list)
 ### Filter
 props = solve.exclude_filter(props_init, params['exclude_rep'] )
 ### Solve
-obsol = solve.get_obsol(props, params['exp'], params['weights'], params['solve_mode'])
+obsol = solve.get_obsol(props, params['exp'])
 ## Save
 solve.save_series(file_list, obsol, params)
 
+
 #%%
+#################### Combine and ensemble solution
+v_upp = 5000
+v_low = int(np.ceil(v_upp/2))
+
 ### Combine
 obsol_combined = solve.combine_obsol(obsol)
 print()
@@ -41,17 +38,20 @@ print('Combined solutions:')
 solve.print_solutions(obsol_combined)
 
 ### Ensemble solution
-obsol_ensemble, obsol_ensemble_combined = solve.get_obsols_ensemble(obsol.query('vary <= 1251 and nn_d > 5'),[1,1,0,0,0,0,0])
+obsol_ensemble, obsol_ensemble_combined = solve.get_obsols_ensemble(obsol.query('vary == @v_low or vary == @v_upp '))
 print()
 print('Ensemble solution:')
 solve.print_solutions(obsol_ensemble_combined)
 
+
 #################### Plot anything
-bins = np.linspace(0,8,70)
-# bins = 'fd'
+N_up = obsol_combined.setting.iloc[0] * 2
+bins = np.linspace(0,N_up,50)
+# bins = np.linspace(0,0.1,70)
+# bins = 40
 
 field = 'N'
-query_str = 'vary == 1251 and nn_d > 5'
+query_str = 'vary <= @v_upp and nn_d > 5 and success == 1'
 
 f = plt.figure(0,figsize = [4,3])
 f.clear()

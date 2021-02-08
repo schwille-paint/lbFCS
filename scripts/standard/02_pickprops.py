@@ -8,21 +8,17 @@ import lbfcs.pickprops as props
 
 ############################################################# Which experiment?
 # Experimental setting,  like i.e constant variables like labeling, origami design etc.
-setting = [12]*5
+setting = [2]*5
 # Controlled varying experimental variable like temperature in C (21,22,23) or concentration in pM (1000, 5000)
-vary    = [5000,2500,1250,625,313]
+vary    = [5000,2500]
 
 ############################################# Load raw data
 dir_names=[]
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-01-22_Simulation/5xCTC_exp400_T23_kon30e6_4M_new_CORR1_nock/N12']*5)
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-02-07_N2_a20_var/21-02-07_JS_id206']*2)
 
 file_names=[]
-file_names.extend(['N12_c5000.hdf5'])
-file_names.extend(['N12_c2500.hdf5'])
-file_names.extend(['N12_c1250.hdf5'])
-file_names.extend(['N12_c0625.hdf5'])
-file_names.extend(['N12_c0313.hdf5'])
-
+file_names.extend(['id206_5000pM_p15uW_exp400_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
+file_names.extend(['id206_2500pM_p15uW_exp400_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
 
 ############################################ Set parameters 
 params={'ignore':1,

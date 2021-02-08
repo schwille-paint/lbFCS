@@ -205,14 +205,17 @@ def props_fcs(df,NoFrames,max_it=1):
     ############################# Calculate mean (I) and variance (var_I) of traces
     I = np.mean(trace)           # Unfiltered trace
     var_I = np.var(trace)
+    B = var_I / I
+    
     I_ck = np.mean(trace_ck) # Chung-Kennedy filtered trace
     var_I_ck = np.var(trace_ck)
+    B_ck = var_I_ck / I_ck
     
     ############################# Assignment to series 
     s_out=pd.Series({'A':A,'tau':tau,                                # AC fit 
                      'A_lin':A_lin,'tau_lin':tau_lin,                       # AC linear fit
-                     'I':I,'var_I':var_I,                                          # I and var_I
-                     'I_ck':I_ck,'var_I_ck':var_I_ck,                     # I and var_I of Chung-Kennedy filtered trace
+                     'I':I,'var_I':var_I,'B':B,                                  # I and var_I
+                     'I_ck':I_ck,'var_I_ck':var_I_ck,'B_ck':B_ck,   # I and var_I of Chung-Kennedy filtered trace
                      }) 
     
     return s_out
