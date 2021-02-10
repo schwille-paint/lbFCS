@@ -578,6 +578,7 @@ def main(locs,info,path,conditions,**params):
                                     'setting':np.uint16,
                                     'vary':np.uint32,
                                     'M':np.uint16,
+                                    'ignore':np.uint8,
                                     })
     
     locs = locs.assign(setting = conditions[0])
