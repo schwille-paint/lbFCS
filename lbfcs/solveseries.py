@@ -482,7 +482,48 @@ def save_series(files, obs, params):
                                    [params],
                                    mode='picasso_compatible')
     files.to_csv(savepath_files, index=False)
+
+#%%
+def compute_residuals(obs):
+    '''
+    Return residuals of observables in obsol relative to expected observables based on solution in obsol.
+    Resiudals are in percent!!!.
+
+    '''
+    ### Copy input
+    obs_res = obs.copy()
     
+    ### Compute residual in all observables
+    obs_res.tau = - tau_func(obs_res.koff.values,obs_res.konc.values,obs_res.tau.values)
+    obs_res.tau *= 100/tau_func(obs_res.koff.values,obs_res.konc.values,0)
+    
+    obs_res.A = - A_func(obs_res.koff.values,obs_res.konc.values,obs_res.N.values,obs_res.A.values)
+    obs_res.A *= 100/A_func(obs_res.koff.values,obs_res.konc.values,obs_res.N.values,0)
+    
+    obs_res.occ = - occ_func(obs_res.M.values,obs_res.koff.values,obs_res.konc.values,obs_res.N.values,obs_res.occ.values)
+    obs_res.occ *= 100/occ_func(obs_res.M.values,obs_res.koff.values,obs_res.konc.values,obs_res.N.values,0)
+    
+    obs_res.I = - I_func(obs_res.koff.values,obs_res.konc.values,obs_res.N.values,obs_res.eps.values,obs_res.I.values)
+    obs_res.I *= 100/I_func(obs_res.koff.values,obs_res.konc.values,obs_res.N.values,obs_res.eps.values,0)
+    
+    obs_res.var_I = - var_I_func(obs_res.koff.values,obs_res.konc.values,obs_res.N.values,obs_res.eps.values,obs_res.var_I.values)
+    obs_res.var_I *= 100/var_I_func(obs_res.koff.values,obs_res.konc.values,obs_res.N.values,obs_res.eps.values,0)
+    
+    obs_res.B = - B_func(obs_res.koff.values,obs_res.konc.values,obs_res.N.values,obs_res.eps.values,obs_res.B.values)
+    obs_res.B *= 100/B_func(obs_res.koff.values,obs_res.konc.values,obs_res.N.values,obs_res.eps.values,0)
+    
+    obs_res.taud = - taud_func(obs_res.konc.values,obs_res.N.values,obs_res.taud.values)
+    obs_res.taud *= 100/taud_func(obs_res.konc.values,obs_res.N.values,0)
+    
+    obs_res.events = - events_func(obs_res.M.values,obs_res.ignore.values,obs_res.koff.values,obs_res.konc.values,obs_res.N.values,obs_res.events.values)
+    obs_res.events *= 100/events_func(obs_res.M.values,obs_res.ignore.values,obs_res.koff.values,obs_res.konc.values,obs_res.N.values,0)
+    
+    obs_res.eps_direct = (obs_res.eps_direct.values - obs_res.eps.values)
+    obs_res.eps_direct *= 100/obs_res.eps
+    
+    return obs_res
+
+
 #%%
 
 ##############################
