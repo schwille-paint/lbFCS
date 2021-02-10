@@ -23,19 +23,19 @@ PROPS_USEFIT_COLS = ['vary','tau_lin','A_lin','occ','I','var_I','B','tau_d','n_e
 OBSSOL_COLS = (['setting','vary','rep','group']
                +['tau','A','occ','I','var_I','B','taud','events'] 
                + ['koff','konc','N','eps','n_points','success']
-               + ['snr','sx','sy']
+               + ['eps_direct','snr','sx','sy']
                + ['x','y','nn_d','frame','std_frame']
                + ['ignore','M','exp','date'])
 ### Columns transferred from props to obsol
 OBS_COLS = (['setting','vary','rep','group']
             + ['tau_lin','A_lin','occ','I_ck','var_I_ck','B','tau_d','n_events']
-            + ['bg','sx','sy']
+            + ['eps_direct','bg','sx','sy']
             + ['x','y','nn_d','frame','std_frame']
             + ['ignore','M','date'])
 ### New names of columns transferred from props
 OBS_COLS_NEWNAME = (['setting','vary','rep','group'] 
                     + ['tau','A','occ','I','var_I','B','taud','events']
-                    + ['snr','sx','sy']
+                    + ['eps_direct','snr','sx','sy']
                     + ['x','y','nn_d','frame','std_frame']
                     + ['ignore','M','date'])
 ### Columns names used for preparing fit data from obs
@@ -63,6 +63,7 @@ OBSOL_TYPE_DICT = {'setting':np.uint16,
                                    'n_points':np.uint8,
                                    'success':np.uint8,
                                    #
+                                   'eps_direct':np.float32,
                                    'snr':np.float32,
                                    'sx':np.float32,
                                    'sy':np.float32,
