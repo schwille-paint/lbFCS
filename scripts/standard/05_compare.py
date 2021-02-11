@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 
 import picasso.io as io
 import lbfcs.solveseries as solve
+import lbfcs.visualizeseries as visualize
 
 plt.style.use('~/lbFCS/styles/paper.mplstyle')
 
@@ -21,9 +22,8 @@ dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-01-28_higherN
 
 
 #################### Load data
-w_str = '1111100'
 ### Load obsol and infophotons
-obsol_paths = [os.path.join(dir_name,'_obsol-%s.hdf5'%w_str) for dir_name in dir_names]
+obsol_paths = [os.path.join(dir_name,'_obsol.hdf5') for dir_name in dir_names]
 obsol = pd.concat([pd.DataFrame(io.load_locs(p)[0]) for p in obsol_paths])
 obsol_info = [io.load_locs(p)[1] for p in obsol_paths]
 ### Load file_lists
@@ -64,3 +64,12 @@ f.clear()
 ax = f.add_subplot(111)
 ax.hist(obsol.query(query_str)[field],bins=bins,histtype='step')
 ax.hist(obsol_ensemble.query(query_str)[field],bins=bins,histtype='step')
+
+
+#################### Plot residuals
+f = plt.figure(1,figsize = [4,3])
+f.clear()
+ax = f.add_subplot(111)
+visualize.residual_violinplot_toax(ax,
+                                                     solve.compute_residuals(obsol.query(query_str)),
+                                                     )
