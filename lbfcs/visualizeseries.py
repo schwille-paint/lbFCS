@@ -9,23 +9,24 @@ OBS_COLS = ['tau','A','occ','I','var_I','B','taud','events','eps_direct']
 OBS_COLS_LABELS = [r'$\tau$','A','occ','I',r'$I_{var}$','B',r'$\tau_d$','events',r'$\epsilon_{driect}$']
 
 #%%
-def residual_violinplot_toax(ax,obs_res,show_cols=range(len(OBS_COLS))):
+def residual_violinplot_toax(ax,obs_res,show_violin=False,show_cols=range(len(OBS_COLS))):
     
     cols = [OBS_COLS[i] for i in show_cols]
     cols_labels = [OBS_COLS_LABELS[i] for i in show_cols]
     
-    ### Violin plot
-    parts = ax.violinplot(obs_res[cols],
-                  showmeans = False,
-                  showextrema = False,
-                  points = 20,
-                  widths = 0.7,
-                  )
-    for pc in parts['bodies']:
-        pc.set_facecolor('lightgrey')
-        pc.set_edgecolor('black')
-        pc.set_linewidth(1)
-        pc.set_alpha(1)
+    if show_violin:
+        ### Violin plot
+        parts = ax.violinplot(obs_res[cols],
+                      showmeans = False,
+                      showextrema = False,
+                      points = 300,
+                      widths = 0.7,
+                      )
+        for pc in parts['bodies']:
+            pc.set_facecolor('lightgrey')
+            pc.set_edgecolor('black')
+            pc.set_linewidth(1)
+            pc.set_alpha(1)
     
     ### Zero line as guide for the eye
     ax.axhline(0,ls='--',c='k')
