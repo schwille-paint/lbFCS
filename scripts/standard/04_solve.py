@@ -9,10 +9,10 @@ plt.style.use('~/lbFCS/styles/paper.mplstyle')
 #%%
 #################### Define parameters
 params = {}
-params['dir_name'] = r'//fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-01-22_Simulation/v01/5xCTC_exp400_T23_kon30e6/N04'
+params['dir_name'] = r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-17_N1-2x5xCTC_cseries/20-12-17_FS_id192_sample2'
 
 params['exp'] = 0.4
-params['exclude_rep'] = [0,1,3,4,5]
+params['exclude_rep'] = []
 
 #%%
 #################### Load, filter, solve, save
@@ -22,7 +22,7 @@ print();print(file_list)
 ### Filter
 props = solve.exclude_filter(props_init, params['exclude_rep'] )
 ### Solve
-obsol = solve.get_obsol(props, params['exp'])
+obsol = solve.get_obsol(props, params['exp'],[1,1,1,1,0,0,0,0])
 ## Save
 # solve.save_series(file_list, obsol, params)
 
@@ -46,18 +46,19 @@ solve.print_solutions(obsol_ensemble_combined)
 
 
 #################### Plot anything
-N_up = obsol_combined.setting.iloc[0] * 2
+N_up = obsol_combined.setting.iloc[0] * 6
 bins = np.linspace(0,N_up,50)
-# bins = np.linspace(0,0.1,70)
+# bins = np.linspace(0,100,50)
+# bins=100
 
 field = 'N'
-query_str = 'vary == @v_upp and nn_d > 5 and success == 1'
+query_str = 'vary == @v_upp and nn_d > 5 and success > 90'
 
 f = plt.figure(0,figsize = [4,3])
 f.clear()
 ax = f.add_subplot(111)
 ax.hist(obsol.query(query_str)[field],bins=bins,histtype='step')
-ax.hist(obsol_ensemble.query(query_str)[field],bins=bins,histtype='step')
+# ax.hist(obsol.query(query_str)[field + '_direct'],bins=bins,histtype='step')
 
 
 #################### Plot residuals
@@ -65,5 +66,5 @@ f = plt.figure(1,figsize = [4,3])
 f.clear()
 ax = f.add_subplot(111)
 visualize.residual_violinplot_toax(ax,
-                                                     solve.compute_residuals(obsol.query(query_str)),
-                                                     )
+                                   solve.compute_residuals(obsol.query(query_str)),
+                                   )

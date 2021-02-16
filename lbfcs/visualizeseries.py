@@ -6,7 +6,7 @@ import re
 import lbfcs.solveseries as solve
 
 OBS_COLS = ['tau','A','occ','I','var_I','B','taud','events','eps_direct']
-OBS_COLS_LABELS = [r'$\tau$','A','occ','I',r'$I_{var}$','B',r'$\tau_d$','events',r'$\epsilon_{driect}$']
+OBS_COLS_LABELS = [r'$\tau$','A','occ','I',r'$I_{var}$','B',r'$\tau_d$','events',r'$\epsilon_{direct}$']
 
 #%%
 def residual_violinplot_toax(ax,obs_res,show_violin=False,show_cols=range(len(OBS_COLS))):
@@ -19,7 +19,7 @@ def residual_violinplot_toax(ax,obs_res,show_violin=False,show_cols=range(len(OB
         parts = ax.violinplot(obs_res[cols],
                       showmeans = False,
                       showextrema = False,
-                      points = 300,
+                      points = 20,
                       widths = 0.7,
                       )
         for pc in parts['bodies']:

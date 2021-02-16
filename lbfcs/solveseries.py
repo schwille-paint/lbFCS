@@ -61,7 +61,7 @@ OBSOL_TYPE_DICT = {'setting':np.uint16,
                                    'N':np.float32,
                                    'eps':np.float32,
                                    'n_points':np.uint8,
-                                   'success':np.uint8,
+                                   'success':np.float32,
                                    #
                                    'eps_direct':np.float32,
                                    'snr':np.float32,
@@ -265,7 +265,7 @@ def create_eqs(x,data, weights):
         
         for c_idx in cs_idx:
             
-            system[eq_idx]      = ( w[0] / data[c_idx,1] ) * tau_func(x[n],x[i],data[c_idx,1])
+            system[eq_idx]   = ( w[0] / data[c_idx,1] ) * tau_func(x[n],x[i],data[c_idx,1])
             system[eq_idx+1] = ( w[1] / data[c_idx,2] ) * A_func(x[n],x[i],x[n+1],data[c_idx,2])
             system[eq_idx+2] = ( w[2] / data[c_idx,3] ) * occ_func(data[c_idx,-1],x[n],x[i],x[n+1],data[c_idx,3])
             
@@ -290,8 +290,8 @@ def estimate_unknowns(data,weights):
     Get estimate x0 for unknowns x based on data to feed into fit as initial value x0.
     Return unique concentration points in data.
     '''
-    cs = np.unique(data[:,0])                                                            # 1st row of data corresponds to concentration
-    n = len(cs)                                                                                   # Unique concentrations equals number of koncs for system
+    cs = np.unique(data[:,0])                                         # 1st row of data corresponds to concentration
+    n = len(cs)                                                       # Unique concentrations equals number of koncs for system
     fit_eps = (weights[3] > 0) | (weights[4] > 0) |  (weights[5] > 0) # Fit eps value if I or var_I or B have contributions in equation system
     
     x0 = np.zeros(n+3,dtype=np.float32)           # Init estimate
@@ -328,7 +328,15 @@ def solve_eqs(data,weights):
                                                      ftol=1e-4,
                                                      )
     x = np.abs(xopt.x)
-    success = xopt.success
+    
+    ### Compute mean residual relative to data in percent
+    res = np.abs(create_eqs(x,data,weights)) 
+    res = np.sum(res) / (np.sum(weights > 0) * np.shape(data)[0])
+    
+    ### Assign 100 - res to success and if success < 0 assign 0 (i.e. solution deviates bymore than 100%!)
+    ### So naturally the closer success to 100% the better the solution was found
+    success = 100 - res
+    if success < 0: success = 0
     
     return x, success, cs, n
 
@@ -366,7 +374,7 @@ def obsol(df,weights):
     obs.eps = x[n+2]                                                   # If 0 weights were assigned to both I and var_I eps = 0 at this point -> see also estimate_unkowns()
     for i,c in enumerate(cs): obs.loc[obs.vary==c,'konc'] = x[i]
     obs.n_points = len(df)
-    obs.success = int(success)
+    obs.success = success
     
     ### Assign photon related observables
     fit_eps = (weights[3] > 0) | (weights[4] > 0) | (weights[5] > 0)    # Was eps fitted by using either I or var_I or B?
@@ -421,7 +429,7 @@ def combine(df_in,success_only):
     s_out = pd.Series(index=OBSSOL_COLS)
     
     ### Reduce to groups which could be successfully fitted
-    if success_only: df = df_in[df_in.success == 1]
+    if success_only: df = df_in[df_in.success > 90]
     else: df = df_in.copy()
     
     ### Compute ensemble observables
@@ -484,7 +492,7 @@ def save_series(files, obs, params):
     files.to_csv(savepath_files, index=False)
 
 #%%
-def compute_residuals(obs):
+def compute_residuals(obs,eps_field='eps'):
     '''
     Return residuals of observables in obsol relative to expected observables based on solution in obsol.
     Resiudals are in percent!!!.
@@ -496,30 +504,39 @@ def compute_residuals(obs):
     ### Compute residual in all observables
     obs_res.tau = - tau_func(obs_res.koff.values,obs_res.konc.values,obs_res.tau.values)
     obs_res.tau *= 100/tau_func(obs_res.koff.values,obs_res.konc.values,0)
+    # obs_res.tau *= 100/obs.tau
     
     obs_res.A = - A_func(obs_res.koff.values,obs_res.konc.values,obs_res.N.values,obs_res.A.values)
     obs_res.A *= 100/A_func(obs_res.koff.values,obs_res.konc.values,obs_res.N.values,0)
+    # obs_res.A *= 100/obs.A
     
     obs_res.occ = - occ_func(obs_res.M.values,obs_res.koff.values,obs_res.konc.values,obs_res.N.values,obs_res.occ.values)
     obs_res.occ *= 100/occ_func(obs_res.M.values,obs_res.koff.values,obs_res.konc.values,obs_res.N.values,0)
+    # obs_res.occ *= 100/obs.occ
     
-    obs_res.I = - I_func(obs_res.koff.values,obs_res.konc.values,obs_res.N.values,obs_res.eps.values,obs_res.I.values)
-    obs_res.I *= 100/I_func(obs_res.koff.values,obs_res.konc.values,obs_res.N.values,obs_res.eps.values,0)
+    obs_res.I = - I_func(obs_res.koff.values,obs_res.konc.values,obs_res.N.values,obs_res[eps_field].values,obs_res.I.values)
+    obs_res.I *= 100/I_func(obs_res.koff.values,obs_res.konc.values,obs_res.N.values,obs_res[eps_field].values,0)
+    # obs_res.I *= 100/obs.I
     
-    obs_res.var_I = - var_I_func(obs_res.koff.values,obs_res.konc.values,obs_res.N.values,obs_res.eps.values,obs_res.var_I.values)
-    obs_res.var_I *= 100/var_I_func(obs_res.koff.values,obs_res.konc.values,obs_res.N.values,obs_res.eps.values,0)
+    obs_res.var_I = - var_I_func(obs_res.koff.values,obs_res.konc.values,obs_res.N.values,obs_res[eps_field].values,obs_res.var_I.values)
+    obs_res.var_I *= 100/var_I_func(obs_res.koff.values,obs_res.konc.values,obs_res.N.values,obs_res[eps_field].values,0)
+    # obs_res.var_I *= 100/obs.var_I
     
-    obs_res.B = - B_func(obs_res.koff.values,obs_res.konc.values,obs_res.N.values,obs_res.eps.values,obs_res.B.values)
-    obs_res.B *= 100/B_func(obs_res.koff.values,obs_res.konc.values,obs_res.N.values,obs_res.eps.values,0)
+    obs_res.B = - B_func(obs_res.koff.values,obs_res.konc.values,obs_res.N.values,obs_res[eps_field].values,obs_res.B.values)
+    obs_res.B *= 100/B_func(obs_res.koff.values,obs_res.konc.values,obs_res.N.values,obs_res[eps_field].values,0)
+    # obs_res.B *= 100/obs.B
     
     obs_res.taud = - taud_func(obs_res.konc.values,obs_res.N.values,obs_res.taud.values)
-    obs_res.taud *= 100/taud_func(obs_res.konc.values,obs_res.N.values,0)
+    # obs_res.taud *= 100/taud_func(obs_res.konc.values,obs_res.N.values,0)
+    # obs_res.taud *= 100/obs.taud
     
     obs_res.events = - events_func(obs_res.M.values,obs_res.ignore.values,obs_res.koff.values,obs_res.konc.values,obs_res.N.values,obs_res.events.values)
     obs_res.events *= 100/events_func(obs_res.M.values,obs_res.ignore.values,obs_res.koff.values,obs_res.konc.values,obs_res.N.values,0)
+    # obs_res.events *= 100/obs.events
     
     obs_res.eps_direct = (obs_res.eps_direct.values - obs_res.eps.values)
     obs_res.eps_direct *= 100/obs_res.eps
+    # obs_res.eps_direct *= 100/obs.eps_direct
     
     return obs_res
 
@@ -557,7 +574,11 @@ def solve_eqs_old(data):
     try:
         popt,pcov = optimize.curve_fit(tau_conc_func,x,y,p0=p0,method='trf')
         popt = np.abs(popt)
-        success = 1
+        ### Calculate mean relative residual to data
+        res = np.abs(y - tau_conc_func(x,popt[0],popt[1])) * np.abs((100/y))
+        res = np.sum(res) / len(x)
+        success = 100 -res
+        if success < 0: success = 0
     except:
         popt = np.ones(2) * np.nan
         success = 0
@@ -586,15 +607,15 @@ def obsol_ensemble_combine(obsol,weights):
     data = df.loc[:,OBS_USEFIT_COLS].values.astype(np.float32)
     
     ### Solve equation system
-    if np.all(np.isfinite(weights)):                                                    # New fitting approach if wieghts are properly defined
+    if np.all(np.isfinite(weights)):                                  # New fitting approach if wieghts are properly defined
         x, success, cs, n = solve_eqs(data,weights)  
         ### Assign solution
         obs.koff = x[n]
         obs.N = x[n+1]
         obs.eps = x[n+2]
         for i,c in enumerate(cs): obs.loc[obs.vary==c,'konc'] = x[i]
-        obs.success = int(success)
-    else:                                                                                         # Old fitting approach for ill defined weights
+        obs.success = success
+    else:                                                            # Old fitting approach for ill defined weights
         popt,success = solve_eqs_old(data)
         obs.koff = popt[0]
         obs.konc = popt[1] * obs.vary
@@ -642,10 +663,15 @@ def apply_ensemble(obs,obs_ensemble,Ncols):
     
     koff = float(s.koff)
     konc = float(s.konc)
+    n_points = int(s.n_points)
+    success = float(s.success)
     
-    ### Assign ensemble rates koff&konc to groups
+    ### Assign ensemble rates koff&konc and fit-meta to groups
     df.koff = koff
     df.konc = konc
+    df.n_points = n_points
+    df.success = success
+    
     ### Assign eps and snr based on rates
     ### First we have to convert snr back to bg 
     df.snr = (df.eps.values / (2*np.pi*df.sx.values*df.sy.values) ) * (1/df.snr.values)            # Now snr corresponds to bg again
