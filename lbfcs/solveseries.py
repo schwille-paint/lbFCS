@@ -28,7 +28,7 @@ OBSSOL_COLS = (['setting','vary','rep','group']
                + ['ignore','M','exp','date'])
 ### Columns transferred from props to obsol
 OBS_COLS = (['setting','vary','rep','group']
-            + ['tau_lin','A_lin','occ','I_ck','var_I_ck','B','tau_d','n_events']
+            + ['tau_lin','A_lin','occ','I','var_I','B','tau_d','n_events']
             + ['eps_direct','bg','sx','sy']
             + ['x','y','nn_d','frame','std_frame']
             + ['ignore','M','date'])
@@ -197,7 +197,7 @@ def p_func(koff,konc,corr=0):
     return p
 
 @numba.jit(nopython=True, nogil=True, cache=False)
-def occ_func(M,koff,konc,N,occ_meas):
+def occ_func(koff,konc,N,occ_meas):
     p = p_func(koff,konc,0.5)
     occ = 1 - np.abs(1-p)**N
             
@@ -232,7 +232,7 @@ def taud_func(konc,N,taud_meas): return 1/(N*konc) - taud_meas
 
 @numba.jit(nopython=True, nogil=True, cache=False)
 def events_func(frames,ignore,koff,konc,N,events_meas):
-    p = p_func(koff,konc,1)
+    p = p_func(koff,konc,0.5)
     darktot = np.abs(1-p)**N * frames             # Expected sum of dark times
     taud    = taud_func(konc,N,0)                     # Mean dark time
     events  = darktot / (taud + ignore +.5)      # Expected number of events
@@ -267,7 +267,7 @@ def create_eqs(x,data, weights):
             
             system[eq_idx]   = ( w[0] / data[c_idx,1] ) * tau_func(x[n],x[i],data[c_idx,1])
             system[eq_idx+1] = ( w[1] / data[c_idx,2] ) * A_func(x[n],x[i],x[n+1],data[c_idx,2])
-            system[eq_idx+2] = ( w[2] / data[c_idx,3] ) * occ_func(data[c_idx,-1],x[n],x[i],x[n+1],data[c_idx,3])
+            system[eq_idx+2] = ( w[2] / data[c_idx,3] ) * occ_func(x[n],x[i],x[n+1],data[c_idx,3])
             
             system[eq_idx+3] = ( w[3] / data[c_idx,4] ) * I_func(x[n],x[i],x[n+1],x[n+2],data[c_idx,4])
             system[eq_idx+4] = ( w[4] / data[c_idx,5] ) * var_I_func(x[n],x[i],x[n+1],x[n+2],data[c_idx,5])
@@ -324,13 +324,13 @@ def solve_eqs(data,weights):
     ### Solve system of equations
     xopt = optimize.least_squares(lambda x: create_eqs(x,data,weights),
                                                      x0,
-                                                     method ='trf',
-                                                     ftol=1e-4,
+                                                     method ='lm',
+                                                     # ftol=1e-6,
                                                      )
     x = np.abs(xopt.x)
     
     ### Compute mean residual relative to data in percent
-    res = np.abs(create_eqs(x,data,weights)) 
+    res = np.abs(create_eqs(x,data,weights))
     res = np.sum(res) / (np.sum(weights > 0) * np.shape(data)[0])
     
     ### Assign 100 - res to success and if success < 0 assign 0 (i.e. solution deviates bymore than 100%!)
@@ -371,7 +371,7 @@ def obsol(df,weights):
     ### Assign solution
     obs.koff = x[n]
     obs.N = x[n+1]
-    obs.eps = x[n+2]                                                   # If 0 weights were assigned to both I and var_I eps = 0 at this point -> see also estimate_unkowns()
+    obs.eps = x[n+2]    # If 0 weights were assigned to both I and var_I eps = 0 at this point -> see also estimate_unkowns()
     for i,c in enumerate(cs): obs.loc[obs.vary==c,'konc'] = x[i]
     obs.n_points = len(df)
     obs.success = success
@@ -379,8 +379,8 @@ def obsol(df,weights):
     ### Assign photon related observables
     fit_eps = (weights[3] > 0) | (weights[4] > 0) | (weights[5] > 0)    # Was eps fitted by using either I or var_I or B?
     if not fit_eps:
-        obs.eps = obs.I / (obs.N * p_func(obs.koff.values,obs.konc.values,0))
-    obs.snr = snr_func(obs.eps,obs.snr,obs.sx,obs.sy) # Before this line value of snr corresponded to bg!
+        obs.eps = obs.I.values / (obs.N.values * p_func(obs.koff.values,obs.konc.values))
+    obs.snr = snr_func(obs.eps.values,obs.snr.values,obs.sx.values,obs.sy.values) # Before this line value of snr corresponded to bg!
     
     return obs
 
@@ -510,8 +510,8 @@ def compute_residuals(obs,eps_field='eps'):
     obs_res.A *= 100/A_func(obs_res.koff.values,obs_res.konc.values,obs_res.N.values,0)
     # obs_res.A *= 100/obs.A
     
-    obs_res.occ = - occ_func(obs_res.M.values,obs_res.koff.values,obs_res.konc.values,obs_res.N.values,obs_res.occ.values)
-    obs_res.occ *= 100/occ_func(obs_res.M.values,obs_res.koff.values,obs_res.konc.values,obs_res.N.values,0)
+    obs_res.occ = - occ_func(obs_res.koff.values,obs_res.konc.values,obs_res.N.values,obs_res.occ.values)
+    obs_res.occ *= 100/occ_func(obs_res.koff.values,obs_res.konc.values,obs_res.N.values,0)
     # obs_res.occ *= 100/obs.occ
     
     obs_res.I = - I_func(obs_res.koff.values,obs_res.konc.values,obs_res.N.values,obs_res[eps_field].values,obs_res.I.values)
@@ -535,7 +535,7 @@ def compute_residuals(obs,eps_field='eps'):
     # obs_res.events *= 100/obs.events
     
     obs_res.eps_direct = (obs_res.eps_direct.values - obs_res.eps.values)
-    obs_res.eps_direct *= 100/obs_res.eps
+    obs_res.eps_direct *= 100/obs_res.eps.values
     # obs_res.eps_direct *= 100/obs.eps_direct
     
     return obs_res
