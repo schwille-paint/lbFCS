@@ -527,7 +527,7 @@ def compute_residuals(obs,eps_field='eps'):
     # obs_res.B *= 100/obs.B
     
     obs_res.taud = - taud_func(obs_res.konc.values,obs_res.N.values,obs_res.taud.values)
-    # obs_res.taud *= 100/taud_func(obs_res.konc.values,obs_res.N.values,0)
+    obs_res.taud *= 100/taud_func(obs_res.konc.values,obs_res.N.values,0)
     # obs_res.taud *= 100/obs.taud
     
     obs_res.events = - events_func(obs_res.M.values,obs_res.ignore.values,obs_res.koff.values,obs_res.konc.values,obs_res.N.values,obs_res.events.values)
