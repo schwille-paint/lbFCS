@@ -9,7 +9,7 @@ OBS_COLS = ['tau','A','occ','I','var_I','B','taud','events','eps_direct']
 OBS_COLS_LABELS = [r'$\tau$','A','occ','I',r'$I_{var}$','B',r'$\tau_d$','events',r'$\epsilon_{direct}$']
 
 #%%
-def residual_violinplot_toax(ax,obs_res,show_violin=False,show_cols=range(len(OBS_COLS))):
+def residual_violinplot_toax(ax,obs_res,show_violin=False,show_cols=[0,1,2,3,4,5,8]):
     
     cols = [OBS_COLS[i] for i in show_cols]
     cols_labels = [OBS_COLS_LABELS[i] for i in show_cols]

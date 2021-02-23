@@ -17,7 +17,7 @@ import picasso_addon.io as addon_io
 warnings.filterwarnings("ignore")
 
 ### Columns names used for preparing fit data from props
-PROPS_USEFIT_COLS = ['vary','tau_lin','A_lin','occ','I','var_I','B','tau_d','n_events','ignore','M']
+PROPS_USEFIT_COLS = ['vary','tau_lin','A_lin','occ','I','var_I','B','tau_d','n_events','eps_direct','ignore','M']
 
 ### Columns of obsol
 OBSSOL_COLS = (['setting','vary','rep','group']
@@ -39,7 +39,7 @@ OBS_COLS_NEWNAME = (['setting','vary','rep','group']
                     + ['x','y','nn_d','frame','std_frame']
                     + ['ignore','M','date'])
 ### Columns names used for preparing fit data from obs
-OBS_USEFIT_COLS = ['vary','tau','A','occ','I','var_I','B','taud','events','ignore','M']
+OBS_USEFIT_COLS = ['vary','tau','A','occ','I','var_I','B','taud','events','eps_direct','ignore','M']
 
 ### Dict for obsol type conversion
 OBSOL_TYPE_DICT = {'setting':np.uint16,
@@ -240,7 +240,7 @@ def events_func(frames,ignore,koff,konc,N,events_meas):
 
 #%%
 @numba.jit(nopython=True, nogil=True, cache=False)
-def create_eqs(x,data, weights):
+def create_eqs(x,data,weights,eps_unknown):
     '''
     Set-up equation system for varying koncs with given ``data`` as returned by ``prep_data()``. 
     '''
@@ -269,10 +269,16 @@ def create_eqs(x,data, weights):
             system[eq_idx+1] = ( w[1] / data[c_idx,2] ) * A_func(x[n],x[i],x[n+1],data[c_idx,2])
             system[eq_idx+2] = ( w[2] / data[c_idx,3] ) * occ_func(x[n],x[i],x[n+1],data[c_idx,3])
             
-            system[eq_idx+3] = ( w[3] / data[c_idx,4] ) * I_func(x[n],x[i],x[n+1],x[n+2],data[c_idx,4])
-            system[eq_idx+4] = ( w[4] / data[c_idx,5] ) * var_I_func(x[n],x[i],x[n+1],x[n+2],data[c_idx,5])
-            system[eq_idx+5] = ( w[5] / data[c_idx,6] ) * B_func(x[n],x[i],x[n+1],x[n+2],data[c_idx,6])
-            
+            if eps_unknown:  # Treat eps as unkown variable
+                system[eq_idx+3] = ( w[3] / data[c_idx,4] ) * I_func(x[n],x[i],x[n+1],x[n+2],data[c_idx,4])
+                system[eq_idx+4] = ( w[4] / data[c_idx,5] ) * var_I_func(x[n],x[i],x[n+1],x[n+2],data[c_idx,5])
+                system[eq_idx+5] = ( w[5] / data[c_idx,6] ) * B_func(x[n],x[i],x[n+1],x[n+2],data[c_idx,6])
+                
+            else:           # eps_direct is used as observable
+                system[eq_idx+3] = ( w[3] / data[c_idx,4] ) * I_func(x[n],x[i],x[n+1],data[c_idx,-3],data[c_idx,4])
+                system[eq_idx+4] = ( w[4] / data[c_idx,5] ) * var_I_func(x[n],x[i],x[n+1],data[c_idx,-3],data[c_idx,5])
+                system[eq_idx+5] = ( w[5] / data[c_idx,6] ) * B_func(x[n],x[i],x[n+1],data[c_idx,-3],data[c_idx,6])
+                
             system[eq_idx+6] = ( w[6] / data[c_idx,7] ) * taud_func(x[i],x[n+1],data[c_idx,7])
             system[eq_idx+7] = ( w[7] / data[c_idx,8] ) * events_func(data[c_idx,-1],data[c_idx,-2],x[n],x[i],x[n+1],data[c_idx,8])
             
@@ -293,6 +299,7 @@ def estimate_unknowns(data,weights):
     cs = np.unique(data[:,0])                                         # 1st row of data corresponds to concentration
     n = len(cs)                                                       # Unique concentrations equals number of koncs for system
     fit_eps = (weights[3] > 0) | (weights[4] > 0) |  (weights[5] > 0) # Fit eps value if I or var_I or B have contributions in equation system
+    # fit_eps = fit_eps & eps_unknown                                    # In this case eps_direct is used as input instead of unkown eps!
     
     x0 = np.zeros(n+3,dtype=np.float32)           # Init estimate
     
@@ -312,7 +319,7 @@ def estimate_unknowns(data,weights):
     return x0,cs,n
     
 #%%
-def solve_eqs(data,weights):
+def solve_eqs(data,weights,eps_unknown):
     '''
     Solve equation system as set-up by ``create_eqs()`` for c-series.. 
     '''
@@ -322,7 +329,7 @@ def solve_eqs(data,weights):
     x0,cs,n = estimate_unknowns(data,weights)
     
     ### Solve system of equations
-    xopt = optimize.least_squares(lambda x: create_eqs(x,data,weights),
+    xopt = optimize.least_squares(lambda x: create_eqs(x,data,weights,eps_unknown),
                                                      x0,
                                                      method ='lm',
                                                      # ftol=1e-6,
@@ -330,7 +337,7 @@ def solve_eqs(data,weights):
     x = np.abs(xopt.x)
     
     ### Compute mean residual relative to data in percent
-    res = np.abs(create_eqs(x,data,weights))
+    res = np.abs(create_eqs(x,data,weights,eps_unknown))
     res = np.sum(res) / (np.sum(weights > 0) * np.shape(data)[0])
     
     ### Assign 100 - res to success and if success < 0 assign 0 (i.e. solution deviates bymore than 100%!)
@@ -348,7 +355,7 @@ def snr_func(eps,bg,sx,sy):
     return snr
 
 #%%
-def obsol(df,weights):
+def obsol(df,weights,eps_unknown):
     '''
     Create final output per group including observables and solution.
     '''
@@ -356,7 +363,7 @@ def obsol(df,weights):
     data = prep_data(df)
     
     ### Solve equation system
-    x, success, cs, n = solve_eqs(data,weights)
+    x, success, cs, n = solve_eqs(data,weights,eps_unknown)
     
     ### Prepare output
     groups = df.group.values.astype(np.int16) # Group used as index
@@ -378,14 +385,22 @@ def obsol(df,weights):
     
     ### Assign photon related observables
     fit_eps = (weights[3] > 0) | (weights[4] > 0) | (weights[5] > 0)    # Was eps fitted by using either I or var_I or B?
+    fit_eps = fit_eps & eps_unknown                                     # Was eps treated as unkown
+    
+    # Only in case where...
+    #   1) ... eps was treated as unknown and ... 
+    #   2) ... had contribution in equation system (i.e. non-zero weights in any eps-releated observable)
+    # ... eps value is assigned to solution.
+    # In other three cases N,koff,kon is used to compute eps using I!!!!
     if not fit_eps:
         obs.eps = obs.I.values / (obs.N.values * p_func(obs.koff.values,obs.konc.values))
+        
     obs.snr = snr_func(obs.eps.values,obs.snr.values,obs.sx.values,obs.sy.values) # Before this line value of snr corresponded to bg!
     
     return obs
 
 #%%
-def get_obsol(props, exp, weights = [1,1,1,1,0,0,0,0], solve_mode = 'single'):
+def get_obsol(props, exp, weights = [1,1,1,1,0,0,0,0],eps_unknown = True, solve_mode = 'single'):
     '''
     Groupby and apply obsol().
     
@@ -408,7 +423,7 @@ def get_obsol(props, exp, weights = [1,1,1,1,0,0,0,0], solve_mode = 'single'):
         sys.exit()
     
     print()
-    df = props.groupby(groupby_cols).progress_apply(lambda df: obsol(df,weights))
+    df = props.groupby(groupby_cols).progress_apply(lambda df: obsol(df,weights,eps_unknown))
     df = df.droplevel( level = groupby_cols)
     print()
     
@@ -585,7 +600,7 @@ def solve_eqs_old(data):
         
     return popt, success
 #%%
-def obsol_ensemble_combine(obsol,weights):
+def obsol_ensemble_combine(obsol,weights,eps_unknown):
     '''
     Combine group-wise observables to ensemble observables and solve.
     '''
@@ -607,8 +622,8 @@ def obsol_ensemble_combine(obsol,weights):
     data = df.loc[:,OBS_USEFIT_COLS].values.astype(np.float32)
     
     ### Solve equation system
-    if np.all(np.isfinite(weights)):                                  # New fitting approach if wieghts are properly defined
-        x, success, cs, n = solve_eqs(data,weights)  
+    if np.all(np.isfinite(weights)):                                  # New fitting approach if weights are properly defined
+        x, success, cs, n = solve_eqs(data,weights,eps_unknown)  
         ### Assign solution
         obs.koff = x[n]
         obs.N = x[n+1]
@@ -674,8 +689,8 @@ def apply_ensemble(obs,obs_ensemble,Ncols):
     
     ### Assign eps and snr based on rates
     ### First we have to convert snr back to bg 
-    df.snr = (df.eps.values / (2*np.pi*df.sx.values*df.sy.values) ) * (1/df.snr.values)            # Now snr corresponds to bg again
-    df.eps = df.B.values / (df.koff.values * df.tau.values)                                                       # Assign new eps based on B, koff(global) and tau
+    df.snr = (df.eps.values / (2*np.pi*df.sx.values*df.sy.values) ) * (1/df.snr.values)               # Now snr corresponds to bg again
+    df.eps = df.B.values / (df.koff.values * df.tau.values)                                           # Assign new eps based on B, koff(global) and tau
     df.snr = snr_func(df.eps.values,df.snr.values,df.sx.values,df.sy.values)                          # Assign new snr based on new eps
     ### Assign N based on rates
     df.N = N_from_rates(df,Ncols)
@@ -683,12 +698,12 @@ def apply_ensemble(obs,obs_ensemble,Ncols):
     return df
 
 #%%
-def get_obsols_ensemble(obs, weights = [1,1,1,1,0,0,0,0], Ncols = [0,1]):
+def get_obsols_ensemble(obs, weights = [1,1,1,1,0,0,0,0], eps_unknown = True, Ncols = [0,1]):
     '''
     Groupby and apply obsol_ensemble(). For the ensemble solution always complete series for one setting is used.
     '''
     ### Get ensemble solution
-    obs_ensemble_combined = obs.groupby(['date','setting']).apply(lambda df: obsol_ensemble_combine(df,weights))
+    obs_ensemble_combined = obs.groupby(['date','setting']).apply(lambda df: obsol_ensemble_combine(df,weights,eps_unknown))
     obs_ensemble_combined = obs_ensemble_combined.droplevel( level = ['date','setting'])
     obs_ensemble_combined = obs_ensemble_combined.astype(OBSOL_TYPE_DICT)
     
