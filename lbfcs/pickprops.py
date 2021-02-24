@@ -358,11 +358,11 @@ def extract_eps_direct(p):
     
     ### Get histogram of single photon counts
     y = np.histogram(p,800,(0,4000))[0]  # Only values returned in numba
-    x = np.arange(2.5,4000,5)                   # These are the bins
+    x = np.arange(2.5,4000,5)            # These are the bins
     
     ### Get histogram of double photon counts
     y2 = np.histogram(2*p,800,(0,4000))[0]  # Only values returned in numba
-    y2 = y2 * 1.5                                              # Multiply values to roughly equal heights!!!
+    y2 = y2 * 1.5                           # Multiply values to roughly equal heights!!!
     
     y = y.astype(np.float32)
     y2 = y2.astype(np.float32)
@@ -371,11 +371,11 @@ def extract_eps_direct(p):
     y_diff = y.copy()
     y2_lag = y2.copy()
     for l in range(0,100):
-        y_diff -= y2_lag                          # Substract y2_lag from y
+        y_diff -= y2_lag               # Substract y2_lag from y
         y2_lag = np.append(0,y2_lag)   # Add zero to start
-        y2_lag = y2_lag[:-1]                   # Remove last entry 
+        y2_lag = y2_lag[:-1]           # Remove last entry 
     
-    y_diff[y_diff<0] = 0                        # Asign zero to all negative entries after smooth substraction
+    y_diff[y_diff<0] = 0               # Asign zero to all negative entries after smooth substraction
     
     ### Calculate mean of y_diff
     eps_mean = np.sum(x * y_diff) / np.sum(y_diff)
@@ -385,8 +385,12 @@ def extract_eps_direct(p):
     median_idx = np.argmin(np.abs(y_diff_cum-0.5))
     eps_median = x[median_idx]
     
-    ### Which value to return as eps
+    ### Which value is used for cut out of original distribution
     eps = (eps_median + eps_mean)/2
+    
+    ### Cut out first peak p based on eps
+    in_first_peak = p-eps < 0.4 * eps
+    eps = np.median(p[in_first_peak])
     
     return eps ,x, y, y2, y_diff
 

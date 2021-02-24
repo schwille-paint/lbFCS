@@ -329,22 +329,28 @@ def solve_eqs(data,weights,eps_unknown):
     x0,cs,n = estimate_unknowns(data,weights)
     
     ### Solve system of equations
-    xopt = optimize.least_squares(lambda x: create_eqs(x,data,weights,eps_unknown),
-                                                     x0,
-                                                     method ='lm',
-                                                     # ftol=1e-6,
-                                                     )
-    x = np.abs(xopt.x)
-    
-    ### Compute mean residual relative to data in percent
-    res = np.abs(create_eqs(x,data,weights,eps_unknown))
-    res = np.sum(res) / (np.sum(weights > 0) * np.shape(data)[0])
-    
-    ### Assign 100 - res to success and if success < 0 assign 0 (i.e. solution deviates bymore than 100%!)
-    ### So naturally the closer success to 100% the better the solution was found
-    success = 100 - res
-    if success < 0: success = 0
-    
+    try:
+        xopt = optimize.least_squares(lambda x: create_eqs(x,data,weights,eps_unknown),
+                                                         x0,
+                                                         method ='lm',
+                                                         # ftol=1e-6,
+                                                         )
+        x = np.abs(xopt.x)
+        
+        ### Compute mean residual relative to data in percent
+        res = np.abs(create_eqs(x,data,weights,eps_unknown))
+        res = np.sum(res) / (np.sum(weights > 0) * np.shape(data)[0])
+        
+        ### Assign 100 - res to success and if success < 0 assign 0 (i.e. solution deviates bymore than 100%!)
+        ### So naturally the closer success to 100% the better the solution was found
+        success = 100 - res
+        if success < 0: success = 0
+        
+    except:
+        x = x0.copy()
+        x[:] = np.nan
+        success = 0
+        
     return x, success, cs, n
 
 #%%
