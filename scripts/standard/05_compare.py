@@ -13,13 +13,12 @@ plt.style.use('~/lbFCS/styles/paper.mplstyle')
 #################### Define directories of solved series
 dir_names = []
 
-### N=2, 5xCTC
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/20-12-18_N2-5xCTC_cseries/20-12-18_FS_id194_new'])
-### N=4, 5xCTC
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-01-28_higherN-5xCTC_cseries/20-01-28_JS_N4_new'])
-### N=6, 5xCTC
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-01-28_higherN-5xCTC_cseries/21-01-28_JS_N6_new'])
-
+### EGFR, aGFP 1nM for 1h, FOV1, eps_unkown = False
+dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-02-25_EGFR-aGFP-controls/w6_03_561_FOV1_Pm2-8nt-c1250_p40uW_1/box5_mng600_pd12_use-eps'])
+### EGFR,  aGFP 1nM for 1h, FOV2, eps_unkown = False
+dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-02-25_EGFR-aGFP-controls/w6_05_561_FOV2_Pm2-8nt-c1250_p40uW_1/box5_mng600_pd12_use-eps'])
+### EGFR,  aGFP 500pM for 30min, FOV4, eps_unkown = False
+dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-02-25_EGFR-aGFP-controls/w7_10_561_FOV4_Pm2-8nt-c1250_p40uW_POCGX_1/box_mng600_pd12_use-eps'])
 
 #################### Load data
 ### Load obsol and infophotons
@@ -37,39 +36,81 @@ files = pd.concat([pd.read_csv(p) for p in files_paths])
 Analyze
 '''
 ####################
-query_str = 'vary <= 5000 and nn_d > 5'
+v = 1250
+exp = 0.4
+
+query_str = 'setting >=1 '
+query_str += 'and success >= 96'
+# query_str += 'and (eps-eps_direct)/eps_direct < 0.2'
+query_str += 'and abs(frame-M/2)*(2/M) < 0.15'
+query_str += 'and std_frame - 0.85*M/4 > 0'
+query_str += 'and koff > 0.07*0.4 and koff < 0.22*0.4'
+query_str += 'and konc*(1e-6/(@exp*vary*1e-12)) > 3'
+# query_str += 'and M/(1/konc+1/koff) > 10'
+
+data = obsol.query(query_str)
 
 ### Combine
-obsol_combined = solve.combine_obsol(obsol)
-# print()
-# print('Combined solutions:')
-# solve.print_solutions(obsol_combined)
-
-### Ensemble solution
-obsol_ensemble, obsol_ensemble_combined = solve.get_obsols_ensemble(obsol.query(query_str),[1,1,0,0,0,0,0])
-# print()
-# print('Ensemble solution:')
-# solve.print_solutions(obsol_ensemble_combined)
+data_combined = solve.combine_obsol(data)
+print()
+print('Combined solutions:')
+solve.print_solutions(data_combined)
 
 
-#################### Plot anything
-bins = np.linspace(0,10,70)
-# bins = 'fd'
-
-field = 'N'
-query_str = 'setting == 6 and vary >= 1250 and nn_d > 5 and N > 0'
+####################
+'''
+Plotting
+'''
+####################
+####################
+field = 'success'
+bins = np.linspace(90,100,100)
 
 f = plt.figure(0,figsize = [4,3])
 f.clear()
 ax = f.add_subplot(111)
-ax.hist(obsol.query(query_str)[field],bins=bins,histtype='step')
-ax.hist(obsol_ensemble.query(query_str)[field],bins=bins,histtype='step')
+ax.hist(data[field],
+        bins=bins,histtype='step',ec='k')
 
+####################
+field = 'N'
+bins = np.linspace(0,7,93)
 
-#################### Plot residuals
 f = plt.figure(1,figsize = [4,3])
 f.clear()
 ax = f.add_subplot(111)
-visualize.residual_violinplot_toax(ax,
-                                                     solve.compute_residuals(obsol.query(query_str)),
-                                                     )
+ax.hist(data[field]*0.9,
+        bins=bins,histtype='step',ec='k')
+
+####################
+field = 'koff'
+bins = np.linspace(0,0.3,90)
+
+f = plt.figure(2,figsize = [4,3])
+f.clear()
+ax = f.add_subplot(111)
+ax.hist(data[field]/data.exp,
+        bins=bins,histtype='step',ec='k')
+
+####################
+field = 'konc'
+bins = np.linspace(0,50,90)
+
+f = plt.figure(3,figsize = [4,3])
+f.clear()
+ax = f.add_subplot(111)
+ax.hist(data[field]*(1e-6/(data.exp*data.vary*1e-12)),
+        bins=bins,histtype='step',ec='k')
+
+
+#################### Plot residuals
+# eps_field = 'eps_direct'
+# if params['eps_unknown']: eps_field = 'eps'
+
+# f = plt.figure(1,figsize = [4,3])
+# f.clear()
+# ax = f.add_subplot(111)
+# visualize.residual_violinplot_toax(ax,
+#                                     solve.compute_residuals(obsol.query(query_str),eps_field=eps_field),
+#                                     )
+# ax.set_ylim(-3,3)
