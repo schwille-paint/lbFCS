@@ -39,14 +39,16 @@ Analyze
 v = 1250
 exp = 0.4
 
-query_str = 'setting >=1 '
-query_str += 'and success >= 96'
-# query_str += 'and (eps-eps_direct)/eps_direct < 0.2'
+query_str = 'setting > 0 ' 
+query_str += 'and vary == @v ' 
+query_str += 'and success >= 97'
 query_str += 'and abs(frame-M/2)*(2/M) < 0.15'
 query_str += 'and std_frame - 0.85*M/4 > 0'
-query_str += 'and koff > 0.07*0.4 and koff < 0.22*0.4'
-query_str += 'and konc*(1e-6/(@exp*vary*1e-12)) > 3'
-# query_str += 'and M/(1/konc+1/koff) > 10'
+
+# query_str += 'and occ < 0.15 '
+query_str += 'and N < 3.5 '
+query_str += 'and koff > 0.06*@exp '
+# query_str += 'and konc*(1e-6/(@exp*vary*1e-12)) > 2.5'
 
 data = obsol.query(query_str)
 
@@ -62,55 +64,51 @@ solve.print_solutions(data_combined)
 Plotting
 '''
 ####################
-####################
+################### Plot results
+
+f = plt.figure(0,figsize = [5,9])
+f.clear()
+f.subplots_adjust(bottom=0.1,wspace=0.3)
+#################### success
 field = 'success'
 bins = np.linspace(90,100,100)
+ax = f.add_subplot(411)
 
-f = plt.figure(0,figsize = [4,3])
-f.clear()
-ax = f.add_subplot(111)
 ax.hist(data[field],
         bins=bins,histtype='step',ec='k')
 
-####################
+#################### N
 field = 'N'
-bins = np.linspace(0,7,93)
+bins = np.linspace(0,4,60)
+ax = f.add_subplot(412)
 
-f = plt.figure(1,figsize = [4,3])
-f.clear()
-ax = f.add_subplot(111)
 ax.hist(data[field]*0.9,
         bins=bins,histtype='step',ec='k')
 
-####################
+#################### koff
 field = 'koff'
-bins = np.linspace(0,0.3,90)
+bins = np.linspace(0,0.3,60)
+ax = f.add_subplot(413)
 
-f = plt.figure(2,figsize = [4,3])
-f.clear()
-ax = f.add_subplot(111)
-ax.hist(data[field]/data.exp,
+ax.hist(data[field]/exp,
         bins=bins,histtype='step',ec='k')
 
-####################
+#################### kon
 field = 'konc'
-bins = np.linspace(0,50,90)
+bins = np.linspace(0,30,60)
+ax = f.add_subplot(414)
 
-f = plt.figure(3,figsize = [4,3])
-f.clear()
-ax = f.add_subplot(111)
-ax.hist(data[field]*(1e-6/(data.exp*data.vary*1e-12)),
+ax.hist(data[field]*(1e-6/(exp*data.vary*1e-12)),
         bins=bins,histtype='step',ec='k')
 
 
 #################### Plot residuals
-# eps_field = 'eps_direct'
-# if params['eps_unknown']: eps_field = 'eps'
+eps_field = 'eps_direct'
 
-# f = plt.figure(1,figsize = [4,3])
-# f.clear()
-# ax = f.add_subplot(111)
-# visualize.residual_violinplot_toax(ax,
-#                                     solve.compute_residuals(obsol.query(query_str),eps_field=eps_field),
-#                                     )
-# ax.set_ylim(-3,3)
+f = plt.figure(1,figsize = [5,3])
+f.clear()
+ax = f.add_subplot(111)
+visualize.residual_violinplot_toax(ax,
+                                    solve.compute_residuals(data.query(query_str),eps_field=eps_field),
+                                    )
+ax.set_ylim(-5,5)
