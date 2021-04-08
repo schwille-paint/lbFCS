@@ -11,11 +11,9 @@ plt.style.use('~/lbFCS/styles/paper.mplstyle')
 #%%
 #################### Define parameters
 params = {}
-### EGFR, 2nd try
-# params['dir_name'] = r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-02-25_EGFR-aGFP-controls/w6_03_561_FOV1_Pm2-8nt-c1250_p40uW_1/box5_mng600_pd12_use-eps'
-# params['dir_name'] = r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-02-25_EGFR-aGFP-controls/w6_05_561_FOV2_Pm2-8nt-c1250_p40uW_1/box5mng600_pd12_use-eps'
-params['dir_name'] = r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-02-25_EGFR-aGFP-controls/w7_10_561_FOV4_Pm2-8nt-c1250_p40uW_POCGX_1/box_mng600_pd12_use-eps'
 
+
+params['dir_name'] = r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-04-08_origami-checks/01_s1_5000pM_p30uW_exp400_1/20-04-08_FS'
 
 params['exp'] = 0.4
 params['exclude_rep'] = []
@@ -42,20 +40,19 @@ solve.save_series(file_list, obsol, params)
 
 #%%
 #################### Plotting
-save_picks = False
+save_picks = True
 exp = params['exp']
 v = 1250
 
 
 query_str = 'vary == @v ' 
-query_str += 'and success >= 98'
-query_str += 'and abs(frame-M/2)*(2/M) < 0.15'
-query_str += 'and std_frame - 0.85*M/4 > 0'
+query_str += 'and success >= 98 '
+query_str += 'and abs(frame-M/2)*(2/M) < 0.2'
+query_str += 'and std_frame - 0.8*M/4 > 0'
 
-# query_str += 'and occ < 0.15 '
-# query_str += 'and N < 1.4 '
-# query_str += 'and koff > 0.16*@exp '
-# query_str += 'and konc*(1e-6/(@exp*vary*1e-12)) > 2.5'
+query_str += 'and N < 3.5 '
+# query_str += 'and koff > 0.065*@exp '
+query_str += 'and konc*(1e-6/(@exp*vary*1e-12)) > 2.5'
 
 data = obsol.query(query_str)
 if save_picks: io.save_picks(data,3,os.path.join(params['dir_name'],'%spicks.yaml'%(str(v).zfill(4))))
@@ -82,10 +79,10 @@ ax.hist(data[field],
 
 #################### N
 field = 'N'
-bins = np.linspace(0,4,60)
+bins = np.linspace(0,5,50)
 ax = f.add_subplot(412)
 
-ax.hist(data[field]*0.9,
+ax.hist(data[field],
         bins=bins,histtype='step',ec='k')
 
 #################### koff

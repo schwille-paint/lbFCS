@@ -513,7 +513,7 @@ def save_series(files, obs, params):
     files.to_csv(savepath_files, index=False)
 
 #%%
-def compute_residuals(obs,eps_field='eps'):
+def compute_residuals(obs,eps_field='eps_direct'):
     '''
     Return residuals of observables in obsol relative to expected observables based on solution in obsol.
     Resiudals are in percent!!!.

@@ -12,13 +12,27 @@ plt.style.use('~/lbFCS/styles/paper.mplstyle')
 #%%
 #################### Define directories of solved series
 dir_names = []
-
-### EGFR, aGFP 1nM for 1h, FOV1, eps_unkown = False
+### 21-02-25: EGFR, setting = [1,2,3]
 dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-02-25_EGFR-aGFP-controls/w6_03_561_FOV1_Pm2-8nt-c1250_p40uW_1/box5_mng600_pd12_use-eps'])
-### EGFR,  aGFP 1nM for 1h, FOV2, eps_unkown = False
 dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-02-25_EGFR-aGFP-controls/w6_05_561_FOV2_Pm2-8nt-c1250_p40uW_1/box5_mng600_pd12_use-eps'])
-### EGFR,  aGFP 500pM for 30min, FOV4, eps_unkown = False
 dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-02-25_EGFR-aGFP-controls/w7_10_561_FOV4_Pm2-8nt-c1250_p40uW_POCGX_1/box_mng600_pd12_use-eps'])
+
+### 21-03-02: EGFR + EGF, setting = [4,12,13,14,15], all 1st well!
+dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-03-02_EGFR-ligand/w1_02_FOV1_561_p40uW_1250pM_1/box5_mng600_pd12_use-eps'])
+dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-03-02_EGFR-ligand/w1_04_FOV1-4_561_p40uW_1250pM_1/box5_mng600_pd12_use-eps_FOV2'])
+dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-03-02_EGFR-ligand/w1_04_FOV1-4_561_p40uW_1250pM_1/box5_mng600_pd12_use-eps_FOV3'])
+dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-03-02_EGFR-ligand/w1_04_FOV1-4_561_p40uW_1250pM_1/box5_mng600_pd12_use-eps_FOV4'])
+dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-03-02_EGFR-ligand/w1_04_FOV1-4_561_p40uW_1250pM_1/box5_mng600_pd12_use-eps_FOV5'])
+
+### 21-03-02: EGFR, setting = [5,8,9,10]
+dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-03-02_EGFR-ligand/w5_02_FOV1_561_p40uW_1250pM_1/box5_mng600_pd12_use-eps'])
+dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-03-02_EGFR-ligand/w6_02_FOV1_561_p40uW_1250pM_1/box5_mng600_pd12_use-eps'])
+dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-03-02_EGFR-ligand/w6_04_FOV1+2_561_p40uW_625pM_1/box5_mng600_pd12_use-eps_FOV1'])
+dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-03-02_EGFR-ligand/w6_04_FOV1+2_561_p40uW_625pM_1/box5_mng600_pd12_use-eps_FOV2'])
+
+### 21-03-31: EGFR, a20+a20*_2x(5xCTC) @(10nM & 1nM) incubation, setting = [42,43]
+dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-03-02_EGFR-ligand/w5_02_FOV1_561_p40uW_1250pM_1/box5_mng600_pd12_use-eps'])
+dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-03-02_EGFR-ligand/w6_02_FOV1_561_p40uW_1250pM_1/box5_mng600_pd12_use-eps'])
 
 #################### Load data
 ### Load obsol and infophotons
@@ -36,19 +50,23 @@ files = pd.concat([pd.read_csv(p) for p in files_paths])
 Analyze
 '''
 ####################
-v = 1250
 exp = 0.4
 
-query_str = 'setting > 0 ' 
-query_str += 'and vary == @v ' 
-query_str += 'and success >= 97'
-query_str += 'and abs(frame-M/2)*(2/M) < 0.15'
-query_str += 'and std_frame - 0.85*M/4 > 0'
+# query_str = 'setting in [1,2,3,5,8] '
+query_str = 'setting in [4,12,13,14,15] '
 
-# query_str += 'and occ < 0.15 '
-query_str += 'and N < 3.5 '
+query_str += 'and success >= 96 '
+query_str += 'and abs(frame-M/2)*(2/M) < 0.2 '
+query_str += 'and std_frame - 0.8*M/4 > 0 '
+
 query_str += 'and koff > 0.06*@exp '
 # query_str += 'and konc*(1e-6/(@exp*vary*1e-12)) > 2.5'
+query_str += 'and N < 2.8 '
+query_str += 'and N > 0.5 '
+
+# query_str += 'and N > 1.4 '
+# query_str += 'and N < 1.4 '
+
 
 data = obsol.query(query_str)
 
@@ -82,7 +100,7 @@ field = 'N'
 bins = np.linspace(0,4,60)
 ax = f.add_subplot(412)
 
-ax.hist(data[field]*0.9,
+ax.hist(data[field],
         bins=bins,histtype='step',ec='k')
 
 #################### koff
