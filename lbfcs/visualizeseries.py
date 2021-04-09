@@ -11,8 +11,8 @@ OBS_COLS_LABELS = [r'$\tau$','A','occ','I',r'$I_{var}$','B',r'$\tau_d$','events'
 #%%
 def residual_violinplot_toax(ax,obs_res,show_violin=False,show_cols=[0,1,2,3,8],csi=0):
     ### Color_scheme
-    mfcs = ['w','lightgrey']
-    cs = ['k','grey']
+    mfcs = ['w','lightgrey','r']
+    cs = ['k','grey','k']
     
     ### Remove non-finite entries
     arefinite = np.all(np.isfinite(obs_res[['tau','A','occ','I','eps_direct']]),axis=1)
