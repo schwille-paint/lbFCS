@@ -42,17 +42,17 @@ solve.save_series(file_list, obsol, params)
 #################### Plotting
 save_picks = True
 exp = params['exp']
-v = 1250
+v = 5000
 
 
 query_str = 'vary == @v ' 
-query_str += 'and success >= 98 '
+query_str += 'and success >= 99 '
 query_str += 'and abs(frame-M/2)*(2/M) < 0.2'
 query_str += 'and std_frame - 0.8*M/4 > 0'
 
 query_str += 'and N < 3.5 '
 # query_str += 'and koff > 0.065*@exp '
-query_str += 'and konc*(1e-6/(@exp*vary*1e-12)) > 2.5'
+query_str += 'and konc*(1e-6/(@exp*vary*1e-12)) > 10'
 
 data = obsol.query(query_str)
 if save_picks: io.save_picks(data,3,os.path.join(params['dir_name'],'%spicks.yaml'%(str(v).zfill(4))))
@@ -87,7 +87,7 @@ ax.hist(data[field],
 
 #################### koff
 field = 'koff'
-bins = np.linspace(0,0.3,50)
+bins = np.linspace(0,0.45,50)
 ax = f.add_subplot(413)
 
 ax.hist(data[field]/exp,
