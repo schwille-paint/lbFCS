@@ -8,19 +8,19 @@ import lbfcs.pickprops as props
 
 ############################################################# Which experiment?
 # Experimental setting,  like i.e constant variables like labeling, origami design etc.
-setting = [42]*3
+setting = [40,41,42]
 # Controlled varying experimental variable like temperature in C (21,22,23) or concentration in pM (1000, 5000)
-vary = [1250,2500,5000]
+vary = [5000]*3
 
 ############################################# Load raw data
 dir_names=[]
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-02-02_N4_POC_cseries/21-03-12_FS_mng1x_pd12_box5_f9000']*3)
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-04-08_origami-checks/12_s5_5000pM_p30uW_exp400_FOVs_1/21-04-09_FS']*3)
 
 
 file_names=[]
-file_names.extend(['id200_1250pM_p15uW_exp400_1_MMStack_Pos0.ome_locs_render_picked_f0-9000.hdf5'])
-file_names.extend(['id200_2500pM_p15uW_exp400_1_MMStack_Pos0.ome_locs_render_picked_f0-9000.hdf5'])
-file_names.extend(['id200_5000pM_p15uW_exp400_1_MMStack_Pos0.ome_locs_render_picked_f0-9000.hdf5'])
+file_names.extend(['12_s5_5000pM_p30uW_exp400_FOVs_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
+file_names.extend(['12_s5_5000pM_p30uW_exp400_FOVs_1_MMStack_Pos1.ome_locs_render_picked.hdf5'])
+file_names.extend(['12_s5_5000pM_p30uW_exp400_FOVs_1_MMStack_Pos2.ome_locs_render_picked.hdf5'])
 
 ############################################ Set parameters 
 params={'ignore':1,
