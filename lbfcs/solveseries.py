@@ -212,31 +212,11 @@ def I_func(koff,konc,N,eps,I_meas):
     return I
 
 @numba.jit(nopython=True, nogil=True, cache=False)
-def var_I_func(koff,konc,N,eps,var_I_meas):
+def Inorm_func(koff,konc,N,I_meas):
     p = p_func(koff,konc)
-    var_I = eps**2 * N * p * (1-p)
-    
-    var_I = var_I - var_I_meas
-    return var_I
-
-@numba.jit(nopython=True, nogil=True, cache=False)
-def B_func(koff,konc,N,eps,B_meas):
-    p = p_func(koff,konc)
-    B = eps * (1 - p)
-    
-    B = B - B_meas
-    return B
-    
-@numba.jit(nopython=True, nogil=True, cache=False)
-def taud_func(konc,N,taud_meas): return 1/(N*konc) - taud_meas
-
-@numba.jit(nopython=True, nogil=True, cache=False)
-def events_func(frames,ignore,koff,konc,N,events_meas):
-    p = p_func(koff,konc,0.5)
-    darktot = np.abs(1-p)**N * frames             # Expected sum of dark times
-    taud    = taud_func(konc,N,0)                     # Mean dark time
-    events  = darktot / (taud + ignore +.5)      # Expected number of events
-    return events - events_meas
+    I = N * p
+    I = I - I_meas
+    return I
 
 #%%
 @numba.jit(nopython=True, nogil=True, cache=False)
