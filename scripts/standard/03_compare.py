@@ -12,27 +12,8 @@ plt.style.use('~/lbFCS/styles/paper.mplstyle')
 #%%
 #################### Define directories of solved series
 dir_names = []
-### 21-02-25: EGFR, setting = [1,2,3]
-dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-02-25_EGFR-aGFP-controls/w6_03_561_FOV1_Pm2-8nt-c1250_p40uW_1/box5_mng600_pd12_use-eps'])
-dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-02-25_EGFR-aGFP-controls/w6_05_561_FOV2_Pm2-8nt-c1250_p40uW_1/box5_mng600_pd12_use-eps'])
-dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-02-25_EGFR-aGFP-controls/w7_10_561_FOV4_Pm2-8nt-c1250_p40uW_POCGX_1/box_mng600_pd12_use-eps'])
+dir_names.extend([r''])
 
-### 21-03-02: EGFR + EGF, setting = [4,12,13,14,15], all 1st well!
-dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-03-02_EGFR-ligand/w1_02_FOV1_561_p40uW_1250pM_1/box5_mng600_pd12_use-eps'])
-dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-03-02_EGFR-ligand/w1_04_FOV1-4_561_p40uW_1250pM_1/box5_mng600_pd12_use-eps_FOV2'])
-dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-03-02_EGFR-ligand/w1_04_FOV1-4_561_p40uW_1250pM_1/box5_mng600_pd12_use-eps_FOV3'])
-dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-03-02_EGFR-ligand/w1_04_FOV1-4_561_p40uW_1250pM_1/box5_mng600_pd12_use-eps_FOV4'])
-dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-03-02_EGFR-ligand/w1_04_FOV1-4_561_p40uW_1250pM_1/box5_mng600_pd12_use-eps_FOV5'])
-
-### 21-03-02: EGFR, setting = [5,8,9,10]
-dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-03-02_EGFR-ligand/w5_02_FOV1_561_p40uW_1250pM_1/box5_mng600_pd12_use-eps'])
-dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-03-02_EGFR-ligand/w6_02_FOV1_561_p40uW_1250pM_1/box5_mng600_pd12_use-eps'])
-dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-03-02_EGFR-ligand/w6_04_FOV1+2_561_p40uW_625pM_1/box5_mng600_pd12_use-eps_FOV1'])
-dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-03-02_EGFR-ligand/w6_04_FOV1+2_561_p40uW_625pM_1/box5_mng600_pd12_use-eps_FOV2'])
-
-### 21-03-31: EGFR, a20+a20*_2x(5xCTC) @(10nM & 1nM) incubation, setting = [42,43]
-dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-03-02_EGFR-ligand/w5_02_FOV1_561_p40uW_1250pM_1/box5_mng600_pd12_use-eps'])
-dir_names.extend([r'/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-03-02_EGFR-ligand/w6_02_FOV1_561_p40uW_1250pM_1/box5_mng600_pd12_use-eps'])
 
 #################### Load data
 ### Load obsol and infophotons

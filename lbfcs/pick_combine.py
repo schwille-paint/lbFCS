@@ -19,7 +19,48 @@ import lbfcs.pick_other as other
 import lbfcs.pick_qpaint as qpaint
 import lbfcs.pick_solve as solve
 
+PROPS_DTYPE = {'conc':np.uint32,
+               'group':np.uint16,
+               #
+               'tau':np.float32,
+               'A':np.float32,
+               'occ':np.float32,
+               'I':np.float32,
+               'eps':np.float32,
+               #
+               'koff':np.float32,
+               'konc':np.float32,
+               'N':np.float32,
+               'eps_normstat':np.float32,
+               'success':np.float32,
+               #
+               'tau_b':np.float32,
+               'tau_d':np.float32,
+               'events':np.float32,
+               'ignore':np.uint8,
+               #
+               'frame':np.float32,
+               'std_frame':np.float32,
+               'photons':np.float32,
+               'bg':np.float32,
+               'x':np.float32,
+               'y':np.float32,
+               'lpx':np.float32,
+               'lpy':np.float32,
+               'sx':np.float32,
+               'sy':np.float32,
+               #
+               'nn_d':np.float32,
+               'M':np.uint16,
+               }
 
+PROPS_ORDERCOLS = ['conc','group',
+                   'tau','A','occ','I','eps',
+                   'koff','konc','N','eps_normstat','success',
+                   'tau_b','tau_d','events','ignore',
+                   'frame','std_frame','photons','bg','x','y','lpx','lpy','sx','sy',
+                   'nn_d','M',
+                   ]
 #%%
 def combine(df,NoFrames,ignore,weights):
     ''' 
@@ -98,7 +139,7 @@ def cluster_setup_howto():
 
 
 #%%
-def main(locs,info,path,conditions,**params):
+def main(locs,info,path,conc,**params):
     '''
     Get immobile properties for each group in _picked.hdf5 file (see `picasso.addon`_) and filter.
     
@@ -171,27 +212,18 @@ def main(locs,info,path,conditions,**params):
     locs_props = locs_props.assign(nn_d = d)        # Assign to props 
                                    
     ##################################### Some final adjustments assigning conditions and downcasting dtypes wherever possible
+    
     locs_props.reset_index(inplace=True) # Assign group to columns
-    locs_props = locs_props.assign(setting = conditions[0])
-    locs_props = locs_props.assign(vary = conditions[1])
+    locs_props = locs_props.assign(conc = conc)
     locs_props = locs_props.assign(M = NoFrames)
+    locs_props = locs_props[PROPS_ORDERCOLS]
+    locs_props = locs_props.astype(PROPS_DTYPE)
     
-    locs_props = locs_props.astype(np.float32)
-    locs_props = locs_props.astype({'group':np.uint16,
-                                    'setting':np.uint16,
-                                    'vary':np.uint32,
-                                    'M':np.uint16,
-                                    'ignore':np.uint8,
-                                    })
-    
-    locs = locs.assign(setting = conditions[0])
-    locs = locs.assign(vary = conditions[1])
+    locs = locs.assign(conc = conc)
     locs = locs.assign(M = NoFrames)
-    
     locs = locs.astype({'frame':np.uint16,
                         'group':np.uint16,
-                        'setting':np.uint16,
-                        'vary':np.uint32,
+                        'conc':np.uint32,
                         'M':np.uint16,
                         })
     

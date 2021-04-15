@@ -135,7 +135,7 @@ def props_qpaint(df,ignore,mode='ralf'):
                      # 'tau_b_off':tau_b_off,'tau_b_a':tau_b_a, # Bright times additional info
                      'tau_d':tau_d,
                      # 'tau_d_off':tau_d_off,'tau_d_a':tau_d_a, # Dark times additional info
-                     'n_events':n_events,                                   # Events
-                     'ignore':ignore,                                       # Used ignore value 
+                     'events':n_events,                         # Events
+                     'ignore':ignore,                           # Used ignore value 
                      }) 
     return s_out
