@@ -1,14 +1,18 @@
 # Import modules
 import os
+import time
+from datetime import datetime
+import getpass
+import warnings
+
 import numpy as np
+import pandas as pd
 import scipy.optimize
 import scipy.spatial
-import pandas as pd
 from tqdm import tqdm
 import dask.dataframe as dd
 import multiprocessing as mp
-import time
-import warnings
+
 warnings.filterwarnings("ignore")
 
 # Import own modules
@@ -226,6 +230,10 @@ def main(locs,info,path,conc,**params):
                         'conc':np.uint32,
                         'M':np.uint16,
                         })
+    
+    ### Add evaluation date and user name to params
+    params['eval_date'] = datetime.now().strftime('%Y-%m-%d  %H:%M:%S') # Add evaluation date to yaml
+    params['user_name'] = getpass.getuser()                             # Add user name to yaml
     
     ##################################### Saving
     print('Saving _props ...')

@@ -7,15 +7,16 @@ import picasso_addon.io as addon_io
 import lbfcs.pick_combine as props
 
 ############################################################# Used imager concentrations in pM
-cs = [1500]
+cs = [1250,2500,5000]
 
 ############################################# Load raw data
 dir_names=[]
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-04-15_NUPs_a20/02_s2w6_c1500_561-p40uW-s23_FOV2_1'])
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-01-28_higherN-5xCTC_cseries/21-04-13_N4_JS_test']*3)
 
 file_names=[]
-file_names.extend(['02_s2w6_c1500_561-p40uW-s23_FOV2_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
-
+file_names.extend(['id200_1250pM_p40uW_exp400_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
+file_names.extend(['id200_2500pM_p40uW_exp400_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
+file_names.extend(['id200_5000pM_p40uW_exp400_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
 
 ############################################ Set parameters 
 params={'ignore':1,
@@ -23,7 +24,7 @@ params={'ignore':1,
 
 ############################################# Start dask parallel computing cluster 
 try:
-    client = Client('localhost:8786')
+    client = Client('localhost:8787')
     print('Connecting to existing cluster...')
 except OSError:
     props.cluster_setup_howto()
