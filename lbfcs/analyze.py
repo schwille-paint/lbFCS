@@ -13,22 +13,39 @@ import picasso.io as io
 
 
 #%%
-def load_props(dir_names):
+def load_all_pickedprops(dir_names,must_contain,filetype = 'props'):
     '''
     Load all _props.hdf5 files in list of dir_Names and return as combined pandas.DataFrame. Also returns comprehensive list of loaded files
     '''
     
-    ### Get sorted list of all paths to props in dir_names
+    if filetype == 'props':
+        filetype_pattern = '*_props*.hdf5'
+    elif filetype == 'picked':
+        filetype_pattern = '*_picked.hdf5'
+    else:
+        filetype_pattern = '*_props*.hdf5'
+    
+    ### Get sorted list of all paths to file-type in dir_names
     paths = []
     for dir_name in dir_names:
-        path = sorted( glob.glob( os.path.join( dir_name,'*_props*.hdf5') ) )
+        path = sorted( glob.glob( os.path.join( dir_name,filetype_pattern) ) )
         paths.extend(path)
+
     paths = sorted(paths)
     
+    ### Necessary string pattern to be found in files
+    for pattern in must_contain:
+        paths = [p for p in path if bool(re.search(pattern,p))]
+        
     ### Load props
     ids = range(len(paths))
-    props = pd.concat([pd.DataFrame(io.load_locs(p)[0]) for p in paths],keys=ids,names=['id'])
-    props = props.reset_index(level=['id'])
+    try:
+        props = pd.concat([pd.DataFrame(io.load_locs(p)[0]) for p in paths],keys=ids,names=['id'])
+        props = props.reset_index(level=['id'])
+    except ValueError:
+            print('No files in directories!')
+            print(dir_names)
+            return 0,0
     
     ### Load infos and get aquisition dates
     infos = [io.load_info(p) for p in paths]

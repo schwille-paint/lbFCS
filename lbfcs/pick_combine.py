@@ -83,6 +83,7 @@ def combine(df,NoFrames,ignore,weights):
     
     ### Combine properties and solution
     s_out = pd.concat([s_props,s_sol])
+    s_out = s_out[[col for col in PROPS_ORDERCOLS if col not in ['conc', 'group', 'nn_d', 'M']]]
     
     return s_out
 
