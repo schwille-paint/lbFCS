@@ -7,20 +7,25 @@ import picasso_addon.io as addon_io
 import lbfcs.pick_combine as props
 
 ############################################################# Used imager concentrations in pM
-cs = [1250,2500,5000]
+cs = [2500]*5
 
 ############################################# Load raw data
 dir_names=[]
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-01-28_higherN-5xCTC_cseries/21-04-13_N4_JS_test']*3)
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-04-21_EGFR_2xCTC/09_w5-250pM_Cy3B-CTween-c2500_561-p50uW-s75_Pos0-4_1/Pos0_pd30'])
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-04-21_EGFR_2xCTC/09_w5-250pM_Cy3B-CTween-c2500_561-p50uW-s75_Pos0-4_1/Pos1_pd30'])
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-04-21_EGFR_2xCTC/09_w5-250pM_Cy3B-CTween-c2500_561-p50uW-s75_Pos0-4_1/Pos2_pd30'])
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-04-21_EGFR_2xCTC/09_w5-250pM_Cy3B-CTween-c2500_561-p50uW-s75_Pos0-4_1/Pos3_pd30'])
+dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-04-21_EGFR_2xCTC/09_w5-250pM_Cy3B-CTween-c2500_561-p50uW-s75_Pos0-4_1/Pos4_pd30'])
 
 file_names=[]
-file_names.extend(['id200_1250pM_p40uW_exp400_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
-file_names.extend(['id200_2500pM_p40uW_exp400_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
-file_names.extend(['id200_5000pM_p40uW_exp400_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
+file_names.extend(['09_w5-250pM_Cy3B-CTween-c2500_561-p50uW-s75_Pos0-4_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
+file_names.extend(['09_w5-250pM_Cy3B-CTween-c2500_561-p50uW-s75_Pos0-4_1_MMStack_Pos1.ome_locs_render_picked.hdf5'])
+file_names.extend(['09_w5-250pM_Cy3B-CTween-c2500_561-p50uW-s75_Pos0-4_1_MMStack_Pos2.ome_locs_render_picked.hdf5'])
+file_names.extend(['09_w5-250pM_Cy3B-CTween-c2500_561-p50uW-s75_Pos0-4_1_MMStack_Pos3.ome_locs_render_picked.hdf5'])
+file_names.extend(['09_w5-250pM_Cy3B-CTween-c2500_561-p50uW-s75_Pos0-4_1_MMStack_Pos4.ome_locs_render_picked.hdf5'])
 
 ############################################ Set parameters 
-params={'ignore':1,
-        'parallel': True}
+params={'parallel': True}
 
 ############################################# Start dask parallel computing cluster 
 try:

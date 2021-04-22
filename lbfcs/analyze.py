@@ -13,7 +13,7 @@ import picasso.io as io
 
 
 #%%
-def load_all_pickedprops(dir_names,must_contain,filetype = 'props'):
+def load_all_pickedprops(dir_names,must_contain = '',filetype = 'props'):
     '''
     Load all _props.hdf5 files in list of dir_Names and return as combined pandas.DataFrame. Also returns comprehensive list of loaded files
     '''
@@ -31,7 +31,7 @@ def load_all_pickedprops(dir_names,must_contain,filetype = 'props'):
         path = sorted( glob.glob( os.path.join( dir_name,filetype_pattern) ) )
         paths.extend(path)
 
-    paths = sorted(paths)
+    # paths = sorted(paths)
     
     ### Necessary string pattern to be found in files
     for pattern in must_contain:

@@ -171,7 +171,7 @@ def main(locs,info,path,conc,**params):
     NoFrames=info[0]['Frames']
     
     ### Define standard 
-    standard_params={'ignore': 3,
+    standard_params={'ignore': 1,
                      'parallel': False,
                      'weights':[1,1,1,1],
                      }

@@ -14,10 +14,10 @@ import lbfcs.analyze as analyze
 plt.style.use('~/lbFCS/styles/paper.mplstyle')
 
 ############################## Load props & picked
-dir_names = ['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-01-28_higherN-5xCTC_cseries/21-04-13_N4_JS_test']
+dir_names = ['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-04-21_EGFR_2xCTC/06_w5-250pM_Cy3B-C-c2000_561-p50uW-s120_Pos2_1/mng1x']
 
-props_init,files_props = analyze.load_all_pickedprops(dir_names,must_contain = ['2500pM'],filetype = 'props')
-picked_init,files_picked = analyze.load_all_pickedprops(dir_names,must_contain = ['2500pM'],filetype = 'picked')
+props_init,files_props = analyze.load_all_pickedprops(dir_names,must_contain = '',filetype = 'props')
+picked_init,files_picked = analyze.load_all_pickedprops(dir_names,must_contain = '',filetype = 'picked')
 
 #%%
 print(files_props)
@@ -38,11 +38,14 @@ query_str = 'id >= 0'
 query_str += 'and abs(frame-M/2)*(2/M) < 0.2 '
 query_str += 'and std_frame - 0.8*M/4 > 0 '
 query_str += 'and success >= @success '
-query_str += 'and N < 7 '
+query_str += 'and abs(eps_normstat-1) < 0.2 '
+query_str += 'and N < 5 '
+query_str += 'and N > 1.5 '
 
 ### Query props an get remaining groups
 props = props.query(query_str)
 groups = props.group.values
+print(len(groups))
 
 #%%
 ##############################
@@ -52,7 +55,7 @@ Analyze one group
 ##############################
 
 ### Select one specific group 
-g = 105
+g = 26
 g = groups[g]
 df = picked.query('group == @g')
 
@@ -78,7 +81,7 @@ eps ,x, y, y2, y_diff = other.extract_eps(df[photons_field].values)
 Visualize
 '''
 ##############################
-p_uplim = 3200
+p_uplim = 4000
 level_uplim = 4
 
 ############################ Normalization photon histogram
