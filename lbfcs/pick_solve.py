@@ -46,7 +46,7 @@ def Inormed_func(koff,konc,N,I_meas):
 
 #%%
 @numba.jit(nopython=True, nogil=True, cache=False)
-def create_eqs(x,data,weights,normed):
+def create_eqs(x,data,weights,known_eps):
     '''
     Set-up equation system.
     '''
@@ -66,7 +66,7 @@ def create_eqs(x,data,weights,normed):
     system[1] = w[1] * A_func(x[0],x[1],x[2],data[1])
     system[2] = w[2] * occ_func(x[0],x[1],x[2],data[2])
             
-    if normed: # In this case no eps will be fitted
+    if known_eps: # In this case no eps will be fitted
         system[3] = w[3] * Inormed_func(x[0],x[1],x[2],data[3])
         
     else:  # Fit eps value
@@ -79,7 +79,7 @@ def create_eqs(x,data,weights,normed):
 
 #%%
 @numba.jit(nopython=True, nogil=True, cache=False)
-def estimate_unknowns(data,normed):
+def estimate_unknowns(data,known_eps):
     '''
     Get estimate x0 for unknowns x based on data to feed into fit as initial value x0.
     '''
@@ -100,31 +100,31 @@ def estimate_unknowns(data,normed):
     x0[2] = N
     x0[3] = 1 # Estimate for eps after normalization!
     
-    ### Remove eps estimate from x0 if normalized I is used
-    if normed: x0 = x0[:3]
+    ### Remove eps estimate from x0 if eps is not assumed to be unknown
+    if known_eps: x0 = x0[:3]
 
     return x0
     
 #%%
-def solve_eqs(data,weights,normed):
+def solve_eqs(data,weights,known_eps):
     '''
     Solve equation system as set-up by ``create_eqs()``.
     '''
     weights = np.array(weights,dtype=np.float32)
     
     ### Get estimate x0
-    x0 = estimate_unknowns(data,normed)
+    x0 = estimate_unknowns(data,known_eps)
     
     ### Solve system of equations
     try:
-        xopt = optimize.least_squares(lambda x: create_eqs(x,data,weights,normed),
+        xopt = optimize.least_squares(lambda x: create_eqs(x,data,weights,known_eps),
                                                          x0,
                                                          method ='lm',
                                                          )
         x = np.abs(xopt.x)
         
         ### Compute mean residual relative to data in percent
-        res = np.abs(create_eqs(x,data,np.ones(4,dtype=np.float32),normed))
+        res = np.abs(create_eqs(x,data,np.ones(4,dtype=np.float32),known_eps))
         res = np.mean(res)
         
         ### Assign 100 - res to success and if success < 0 assign 0 (i.e. solution deviates bymore than 100%!)
@@ -145,18 +145,22 @@ def solve(s,weights):
     ### Prepare data for fitting
     data = s[['tau','A','occ','I']].values
     eps = float(s['eps'])  # Get normalization factor for I
-    data[3] = data[3]/eps  # Normalize I
+    data[3] = data[3]/eps  # Normalize I in any case, i.e. does not matter if eps is assumed to be known or unkown!
     data = data.astype(np.float32)
     
     ### Solve eq.-set with normalized and non-normalized I
-    x_norm, success_norm = solve_eqs(data,weights,normed=True)
-    x, success = solve_eqs(data,weights,normed=False)
+    x_knowneps, success_knowneps = solve_eqs(data, weights, known_eps = True)
+    x, success = solve_eqs(data, [1,1,1,1], known_eps = False)
     
-    s_out=pd.Series({'koff': x_norm[0],
-                     'konc': x_norm[1],
-                     'N': x_norm[2],
-                     'success': success_norm,
-                     'eps_normstat': x[3],
+    ### Compute relative mean deviation between solutions to indicate status of normalization
+    x0 = np.append(x_knowneps,1) # Normalized to solution assuming known eps
+    success_epsnorm = 100 - np.mean(np.abs(x - x0) / x0) * 100
+    
+    s_out=pd.Series({'koff': x_knowneps[0],
+                     'konc': x_knowneps[1],
+                     'N': x_knowneps[2],
+                     'success': success_knowneps,
+                     'success_epsnorm': success_epsnorm,
                      })
     
     return s_out
