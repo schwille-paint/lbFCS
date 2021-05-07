@@ -93,7 +93,7 @@ def estimate_unknowns(data,known_eps):
     
     koff = A * (I/tau)
     konc = 1/tau - koff
-    N = A * (koff/konc)
+    N = (1/A) * (koff/konc)
 
     x0[0] = koff 
     x0[1] = konc
@@ -137,7 +137,7 @@ def solve_eqs(data,weights,known_eps):
         x[:] = np.nan
         success = 0
         
-    return x, success
+    return x, success, x0
 
 #%%
 def solve(s,weights):
@@ -149,18 +149,66 @@ def solve(s,weights):
     data = data.astype(np.float32)
     
     ### Solve eq.-set with normalized and non-normalized I
-    x_knowneps, success_knowneps = solve_eqs(data, weights, known_eps = True)
-    x, success = solve_eqs(data, [1,1,1,1], known_eps = False)
+    x_knowneps, success_knowneps, xstart_knowneps = solve_eqs(data, weights, known_eps = True)
+    x, success, xstart = solve_eqs(data, [1,1,1,1], known_eps = False)
     
     ### Compute relative mean deviation between solutions to indicate status of normalization
     x0 = np.append(x_knowneps,1) # Normalized to solution assuming known eps
     success_epsnorm = 100 - np.mean(np.abs(x - x0) / x0) * 100
     
+    ### Solve eq. set for occ,Inorm after p,N
+    p,N_p = solve_pN(data[3],data[2])
+    
+    ### Combine to pandas.Series output
     s_out=pd.Series({'koff': x_knowneps[0],
                      'konc': x_knowneps[1],
                      'N': x_knowneps[2],
                      'success': success_knowneps,
                      'success_epsnorm': success_epsnorm,
+                     'p':p,
+                     'N_p':N_p,
+                     'N_start': xstart_knowneps[2],
                      })
     
     return s_out
+
+#%%
+
+def solve_pN(Inorm,occ):
+    '''
+    Return solution (p,N) to eq. set defined by observables (Inorm,occ) with unknows (p,N).
+    Defining set of eq.:
+        1) Inorm = N*p
+        2) occ   = 1 - (1-p)^N
+    
+    Defining eq. for exact solution for p:
+    ln(1-p)/p - ln(1-occ)/Inorm = 0
+    
+    With polynomial approximate defining eq. up to order 7 for solution for p:
+    (-1 - p/2 - p^2/3 - p^3/4 - p^4/5 -p^5/6 - p^6/7 - p^7/8) +.... - (ln(1-occ)/Inorm) = 0
+    or:
+    (-1 - ln(1-occ)/Inorm) - p/2 - p^2/3 - p^3/4 - p^4/5 -p^5/6 - p^6/7 - p^7/8 = 0
+    
+    Approximation for p will be solved using numpy.roots.Reasonable solution for p will be selected by the rules:
+        1) p must be real
+        2) p must lie in interval 0 < p < p
+    
+    Then N is computed using eq.: N = Inorm/p
+    '''
+    ### Define polynomial coeffs. for approx. sol. to p up to order 7
+    ### First element correspond to highest order (7) last element to lowest order (0) as needed by numpy.roots
+    cs = -1/np.arange(8,0,-1)
+    cs[-1] -=  np.log(1-occ)/Inorm
+    
+    try:
+        ### Solve polynom
+        r = np.roots(cs)
+        p = r[(r.imag == 0) & (r.real > 0) & (r.real < 1)].real[0]
+        
+        ### Select reasonable solution, if not possible assign NaNs
+        N = Inorm/p
+    except:
+        p = np.nan
+        N = np.nan
+    
+    return p,N
