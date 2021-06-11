@@ -1,16 +1,13 @@
-import os 
-import re
-import sys
-import glob
 import os
-from datetime import datetime
-import getpass
+import glob 
+import re
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+import warnings
 
 import picasso.io as io
 
+warnings.filterwarnings("ignore")
 
 #%%
 def load_all_pickedprops(dir_names,must_contain = '',filetype = 'props'):
@@ -73,77 +70,81 @@ def load_all_pickedprops(dir_names,must_contain = '',filetype = 'props'):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# OBS_COLS = ['tau','A','occ','I','var_I','B','taud','events','eps_direct']
-# OBS_COLS_LABELS = [r'$\tau$','A','occ','I',r'$I_{var}$','B',r'$\tau_d$','events',r'$\epsilon_{direct}$']
-
-# #%%
-# def residual_violinplot_toax(ax,obs_res,show_violin=False,show_cols=[0,1,2,3,8],csi=0):
-#     ### Color_scheme
-#     mfcs = ['w','lightgrey','r']
-#     cs = ['k','grey','k']
+#%%
+def normalize_konc(df_in,
+                   sets,
+                   exp,
+                   ref_q_str = 'occ < 0.4 and N < 2',
+                   ):
+    '''
+    Normalize kon in DataFrame (df) according to datasets (sets).
+    Datasets are given as nested list of ids,
+    i.e.df must contain dataset id as column 'id'.
     
-#     ### Remove non-finite entries
-#     arefinite = np.all(np.isfinite(obs_res[['tau','A','occ','I','eps_direct']]),axis=1)
-#     obs_res = obs_res[arefinite]
+    kon will be normalized to first dataset (i.e. sets[0]).
+    Reference will be selected in first dataset according to a reference query string.
     
-#     ### Select columns to use
-#     cols = [OBS_COLS[i] for i in show_cols]
-#     cols_labels = [OBS_COLS_LABELS[i] for i in show_cols]
+    First output a DataFrame of same dimension as df (df_norm) with normalized koncs.
+    Second output is a 1d numpy array of saem length as sets (flux). 
+    First entry corresponds to reference kon of first dataset (set[0]), 
+    following entries are given as fractions of reference kon.
+    '''
+    print()
+    print('Normalization to:',sets[0])
+    df_list =[]
+    flux = []
     
-#     if show_violin:
-#         ### Violin plot
-#         parts = ax.violinplot(obs_res[cols],
-#                       showmeans = False,
-#                       showextrema = False,
-#                       points = 50,
-#                       widths = 0.7,
-#                       )
-#         for pc in parts['bodies']:
-#             pc.set_facecolor('lightgrey')
-#             pc.set_edgecolor('black')
-#             pc.set_linewidth(1)
-#             pc.set_alpha(1)
+    for i,s  in enumerate(sets):
+        
+        ### Get reference kon (median) in standardized units (10^6/Ms)
+        ### Reference kon is selected in each dataset by ref_query str
+        q_str = 'id in @s and '
+        q_str += ref_q_str
+        
+        df_ref = df_in.query(q_str)
+        kon_ref = df_ref.konc * (1e-6/(exp * df_ref.conc * 1e-12))
+        
+        ### Apply standardized filtering procedure to reference kon band
+        for j in range(3):
+            kon_ref = kon_ref[kon_ref > 0]
+            kon_ref_med = np.median(kon_ref)
+            positives = np.abs( (kon_ref-kon_ref_med) / kon_ref_med) < 0.6
+            kon_ref = kon_ref[positives]
+        
+        ### Add median kon to flux
+        flux.extend([np.median(kon_ref)])
+        
+        ### Normalize flux to first set
+        if i>0: flux[i] = flux[i]/flux[0]
+        
+        ### Print some information
+        if i == 0:
+            print('   ',
+                  s,
+                  'contains %i reference groups'%(len(kon_ref)))
+        else:
+            print('   ',
+                  s,
+                  'contains %i reference groups'%(len(kon_ref)),
+                  ' (%i'%(np.round(flux[i]*100)),
+                  r'%)',
+                  )
+            
+        ### Select datasets in 
+        df = df_in.query('id in @s')
+        
+        ### Normalize kon in df according to flux
+        if i>0: df.loc[:,'konc'] = df.loc[:,'konc'].values/flux[i]
+        
+        df_list.extend([df])
+        
+    df_norm = pd.concat(df_list)
     
-#     ### Centers and quantile bars as errorbar on top of violin
-#     means = np.mean(obs_res[cols], axis=0)
-#     quartile1, medians, quartile3 = np.percentile(obs_res[cols], [10, 50, 90], axis=0)
-#     centers = medians.copy()                      # Center corresponds to median ...
-#     centers[0] = means[0]                           # ... except for tau
-#     quartile1 = np.abs(quartile1 - centers)
-#     quartile3 = np.abs(quartile3 - centers)
+    print('Normalization kon: %.2f (10^6/Ms)'%flux[0])
+    print()
     
-#     line = ax.errorbar(range(1,len(cols)+1),
-#                        centers,
-#                        yerr=(quartile1,quartile3),
-#                        fmt='o',mfc=mfcs[csi],mec='k',c=cs[csi],lw=1.5,
-#                        )
-    
-#     ### Zero line as guide for the eye
-#     ax.axhline(0,ls='--',c='k')
-    
-#     ax.set_xticks(range(1,len(cols)+1))
-#     ax.set_xticklabels(cols_labels,rotation=70)
-#     ax.set_ylabel(r'$\Delta_{rel}$ [%]')
-#     ax.set_ylim([-50,50])
-    
-#     return line
+    return df_norm, flux
+
+
+
 
