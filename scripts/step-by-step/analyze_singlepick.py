@@ -11,13 +11,14 @@ import lbfcs.pick_other as other
 import lbfcs.pick_combine as pickprops
 import lbfcs.analyze as analyze
 
-plt.style.use('~/lbFCS/styles/paper.mplstyle')
+plt.style.use(r'C:\Users\flori\Documents\mpi\repos\lbFCS\styles\paper.mplstyle')
+# plt.style.use('~/lbFCS/styles/paper.mplstyle')
 
 ############################## Load props & picked
-dir_names = ['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-04-21_EGFR_2xCTC/06_w5-250pM_Cy3B-C-c2000_561-p50uW-s120_Pos2_1/mng1x']
+dir_names = [r'C:\Data\p17.lbFCS2\21-04-30_B23_N1-4\01_s1_Pm2-8nt-c5000_p40uW_s50_3FOVs_1']
 
-props_init,files_props = analyze.load_all_pickedprops(dir_names,must_contain = '',filetype = 'props')
-picked_init,files_picked = analyze.load_all_pickedprops(dir_names,must_contain = '',filetype = 'picked')
+props_init,files_props = analyze.load_all_pickedprops(dir_names,must_contain = ['Pos0'],filetype = 'props')
+picked_init,files_picked = analyze.load_all_pickedprops(dir_names,must_contain = ['Pos0'],filetype = 'picked')
 
 #%%
 print(files_props)
@@ -32,22 +33,22 @@ props = props_init.copy()
 picked = picked_init.copy()
 
 ### Define filter
-success = 98 # Success criterium
+success = 99 # Success criterium
 
 query_str = 'id >= 0'
 query_str += 'and abs(frame-M/2)*(2/M) < 0.2 '
 query_str += 'and std_frame - 0.8*M/4 > 0 '
 query_str += 'and success >= @success '
-query_str += 'and abs(eps_normstat-1) < 0.2 '
-query_str += 'and N < 5 '
-query_str += 'and N > 1.5 '
+query_str += 'and N < 2.3 '
+query_str += 'and N >  1.8 '
+query_str += 'and occ > 0.3 '
 
 ### Query props an get remaining groups
 props = props.query(query_str)
 groups = props.group.values
 print(len(groups))
 
-#%%
+
 ##############################
 '''
 Analyze one group
@@ -55,7 +56,7 @@ Analyze one group
 ##############################
 
 ### Select one specific group 
-g = 26
+g = 7
 g = groups[g]
 df = picked.query('group == @g')
 
@@ -63,7 +64,7 @@ df = picked.query('group == @g')
 M = df.M.iloc[0]
 ignore = 1
 weights = [1,1,1,1]
-photons_field = 'photons_ck'
+photons_field = 'photons'
 exp = 0.4
 
 ### Get all properties of this group
@@ -81,8 +82,9 @@ eps ,x, y, y2, y_diff = other.extract_eps(df[photons_field].values)
 Visualize
 '''
 ##############################
-p_uplim = 4000
+p_uplim = 2300
 level_uplim = 4
+window = [2000,3000]
 
 ############################ Normalization photon histogram
 f = plt.figure(0,figsize=[4,3])
@@ -104,7 +106,7 @@ patch = plt.Rectangle([0.6*eps,0],
 ax.add_patch(patch)
 
 ax.legend()
-ax.set_xlabel('Photon Counts')
+ax.set_xlabel('I (t)')
 ax.set_xlim(0,p_uplim)
 ax.set_ylabel('Occurences')
 ax.set_ylim(-ax.get_ylim()[-1],ax.get_ylim()[-1])
@@ -118,12 +120,34 @@ ax = f.add_subplot(111)
 ax.plot(trace,c='tomato')
 for i in range(1,level_uplim+1):
     ax.axhline(i*eps,ls='--',c='k')
-ax.set_xlabel('Frames')
-ax.set_ylabel('Photon Counts')
+ax.set_xlabel('Time')
+ax.set_xticks([])
+ax.set_xlim(window)
+ax.set_ylabel('I (t)')
 ax.set_ylim(-100,p_uplim/2)
+ax.set_yticks([])
 
+############################ Show occupancy barcode
+f = plt.figure(11,figsize=[6,0.9])
+f.subplots_adjust(bottom=0.2,top=0.95,left=0.15,right=0.95)
+f.clear()
+ax = f.add_subplot(111)
+x = np.arange(0,len(trace))
+y_up = trace.copy()
+y_low = np.zeros(len(trace)) 
+y_up[y_up>0] = 1
+ax.fill_between(x,
+                y_low,y_up,
+                color='tomato',
+                alpha=0.5,
+                )
+ax.step(x,y_up,'-',c='k',lw=0.5)
+ax.set_xlim(window)
+ax.set_xticks([])
+ax.set_ylim(0.1,0.9)
+ax.set_yticks([])
 
-############################ Trace
+############################ Info
 f = plt.figure(3,figsize=[2,3])
 f.subplots_adjust(bottom=0.03,top=0.98,left=0.02,right=1)
 f.clear()

@@ -6,23 +6,23 @@ import lbfcs.simulate as simulate
 import picasso_addon.localize as localize
 importlib.reload(simulate)
 
-plt.style.use('~/lbFCS/styles/paper.mplstyle')
+# plt.style.use('~/lbFCS/styles/paper.mplstyle')
 
 ##################### Parameters
 savepath = '~/bla.hdf5'
-reps = 1000
+reps = 10
 M = 1000
 CycleTime = 0.4
 
 N = 1
 koff = 0.11
 kon = 17e6
-c = 1e-9
+c = 5e-9
 
-box = 7
-e_tot = 400
-snr = 5
-sigma = 0.9
+box = 9
+e_tot = 2000
+snr = 10
+sigma = 1.5
 use_weight = False
 
 ### Simulate hybridization reaction
@@ -34,7 +34,7 @@ spots_readnoise = spots[4]
 
 #%%
 ##################### View spots
-idx = 259 # Select
+idx = 1 # Select
 locs_select = locs.iloc[idx,:] 
 
 ##################### Print fitted parameters

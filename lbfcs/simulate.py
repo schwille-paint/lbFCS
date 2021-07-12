@@ -194,10 +194,12 @@ def generate_locs(savepath,
     
     ### Convert to DataFrame
     locs = pd.DataFrame(locs)
+    print(locs.shape) # INSERTED FOR DEBUG!!!!!
     
     ### Check for any negative values in photon, bg, sx, sy values ...
     positives = (locs.photons>0) & (locs.bg>0) & (locs.sx>0) & (locs.sy>0)
     locs = locs[positives]
+    
     ### ... and remove localizations below mng
     mng = set_mng(box,e_tot,snr,sigma)[0]
     positives = locs.net_gradient > mng
@@ -250,7 +252,7 @@ def noise_fitspots(locs, box, e_tot, bg, sigma, use_weight):
     ### Generate spots
     spots = generate_spots(locs, box, e_tot, bg, sigma)
     ### Fit spots
-    locs_noise = fit_spots(locs,box,spots[0],spots[1],use_weight)
+    locs_noise = fit_spots(locs, box,spots[0], spots[1], use_weight, e_tot, bg, sigma)
     ### Compute and assing net-gradient
     print('Calculating net-gradient ...')
     locs_noise['net_gradient'] = netgradient_spots(spots[0])
@@ -320,7 +322,7 @@ def generate_spots(locs, box, e_tot, bg, sigma):
     return [spots_noise, spots_readvar, spots, spots_shotnoise, spots_readnoise]
 
 #%%
-def fit_spots(locs,box,spots,spots_readvar, use_weight):
+def fit_spots(locs,box,spots,spots_readvar,use_weight,e_tot,bg,sigma):
     locs_out = locs.copy()
     init_shape = np.shape(spots)
     
@@ -349,7 +351,17 @@ def fit_spots(locs,box,spots,spots_readvar, use_weight):
             
     else:
         print('Only GPU fitting implemented assigning imagers ...')
-    
+        
+        ### Assign missing values when fit is not performed
+        locs_out['photons'] = locs_out['imagers'] *e_tot
+        locs_out['bg'] = bg
+        locs_out['x'] = locs_out['x_in']
+        locs_out['y'] = locs_out['y_in']
+        locs_out['sx'] = sigma
+        locs_out['sy'] = sigma
+        locs_out['lpx'] = postprocess.localization_precision(locs_out['photons'],locs_out['sx'],locs_out['bg'],em = False)
+        locs_out['lpy'] = postprocess.localization_precision(locs_out['photons'],locs_out['sx'],locs_out['bg'],em = False)
+        
     return locs_out
 
 #%%
