@@ -41,10 +41,7 @@ LOCS_DTYPE = [
     ('kon', 'f4'),
     ('conc', 'f4'),
     ('N_in', 'u4'),
-#    ('ellipticity', 'f4'),
-#    ('n_id', "u4"),
-#    ('likelihood', 'f4'),
-#    ('iterations', 'i4'),
+    ('ellipticity', 'f4'),
 ]
 
 #%%
@@ -245,13 +242,16 @@ def fit_spots(locs,box,spots,spots_readvar,use_weight,e_tot,bg,sigma):
             
             ### Convert fit parameters to final output
             locs_out['photons'] = theta[:,0]
-            locs_out['bg'] = theta[:,-1]
+            locs_out['bg'] = theta[:,5]
             locs_out['x'] = np.round(locs_out['x_in']) + theta[:,1] - int(box/2)
             locs_out['y'] = np.round(locs_out['y_in']) + theta[:,2] - int(box/2)
             locs_out['sx'] = theta[:,3]
             locs_out['sy'] = theta[:,4]
             locs_out['lpx'] = postprocess.localization_precision(theta[:, 0], theta[:, 3], theta[:, 5], em = False)
             locs_out['lpy'] = postprocess.localization_precision(theta[:, 0], theta[:, 4], theta[:, 5], em = False)
+            a = np.maximum(theta[:, 3], theta[:, 3])
+            b = np.minimum(theta[:, 3], theta[:, 4])
+            locs_out['ellipticity'] = (a - b) / a
             
     else:
         if use_weight:
@@ -266,6 +266,8 @@ def fit_spots(locs,box,spots,spots_readvar,use_weight,e_tot,bg,sigma):
             locs_out['sy'] = sigma
             locs_out['lpx'] = postprocess.localization_precision(locs_out['photons'],locs_out['sx'],locs_out['bg'],em = False)
             locs_out['lpy'] = postprocess.localization_precision(locs_out['photons'],locs_out['sx'],locs_out['bg'],em = False)
+            locs_out['ellipticity'] = 1
+            
         else:
             print('Non-weighted non-parallel least square fitting (CPU) ...')
             theta = np.empty((len(spots), 6), dtype = np.float32)
@@ -279,8 +281,11 @@ def fit_spots(locs,box,spots,spots_readvar,use_weight,e_tot,bg,sigma):
             locs_out['y'] = np.round(locs_out['y_in']) + theta[:,1] - int(box/2)
             locs_out['sx'] = theta[:,4]
             locs_out['sy'] = theta[:,5]
-            locs_out['lpx'] = postprocess.localization_precision(theta[:, 2], theta[:, 4], theta[:, 5], em = False)
-            locs_out['lpy'] = postprocess.localization_precision(theta[:, 2], theta[:, 4], theta[:, 5], em = False)
+            locs_out['lpx'] = postprocess.localization_precision(theta[:, 2], theta[:, 4], theta[:, 3], em = False)
+            locs_out['lpy'] = postprocess.localization_precision(theta[:, 2], theta[:, 5], theta[:, 3], em = False)
+            a = np.maximum(theta[:, 4], theta[:, 5])
+            b = np.minimum(theta[:, 4], theta[:, 5])
+            locs_out['ellipticity'] = (a - b) / a
             
     return locs_out
 

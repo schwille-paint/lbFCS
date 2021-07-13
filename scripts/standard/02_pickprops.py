@@ -15,12 +15,12 @@ cs = [5000]*3
 
 ############################################# Load raw data
 dir_names=[]
-dir_names.extend([r'C:\Data\p17.lbFCS2\21-07-13_sumN1']*3)
+dir_names.extend([r'C:\Data\p17.lbFCS2\21-07-13_sim']*3)
 
 file_names=[]
-file_names.extend(['sum_k3_picked.hdf5'])
-file_names.extend(['sum_k5_picked.hdf5'])
-file_names.extend(['sum_k7_picked.hdf5'])
+file_names.extend(['sum_k2_picked.hdf5'])
+file_names.extend(['sum_k4_picked.hdf5'])
+file_names.extend(['sum_k6_picked.hdf5'])
 
 ############################################ Set parameters 
 params={'parallel': False}

@@ -15,11 +15,12 @@ kon = 21.5e6
 cs = [5000e-12]
 
 box = 7
-e_tot = 400
+e_tot = 350
 sigma = 0.9
 use_weight = False
 
 savedir = r'C:\Data\p17.lbFCS2\21-07-13_sim'
+
 #%%
 for i,c in enumerate(cs):
     ### Path and naming

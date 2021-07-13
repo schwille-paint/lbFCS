@@ -14,30 +14,30 @@ file_names = []
 
 
 #################### Define path to _props file
-dir_names.extend([r'C:\Data\p17.lbFCS2\21-04-30_B23_N1-4\04_s2_Pm2-8nt-c5000_p40uW_s50_2FOVs_1'])
-file_names.extend(['04_s2_Pm2-8nt-c5000_p40uW_s50_2FOVs_1_MMStack_Pos0.ome_locs_render_picked_props.hdf5'])
+dir_names.extend([r'C:\Data\p17.lbFCS2\21-07-13_sim'])
+file_names.extend(['N01_c5000_picked_props.hdf5'])
 
 
 #################### Define path to _picked file
-dir_names.extend([r'C:\Data\p17.lbFCS2\21-04-30_B23_N1-4\04_s2_Pm2-8nt-c5000_p40uW_s50_2FOVs_1'])
-file_names.extend(['04_s2_Pm2-8nt-c5000_p40uW_s50_2FOVs_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
+dir_names.extend([r'C:\Data\p17.lbFCS2\21-07-13_sim'])
+file_names.extend(['N01_c5000_picked.hdf5'])
 
 
 #################### Define filter criteria
 query_str = 'abs(frame-M/2)*(2/M) < 0.2 '
 query_str += 'and std_frame - 0.8*M/4 > 0 '
 query_str += 'and success >= 99 '
-query_str += 'and N > 0.8 and N < 1.2'
+query_str += 'and N > 0.9 and N < 1.2 '
 query_str += 'and occ > 0.4'
 
 
 #################### Summation parameters
 n = 1000
-ks = [1]
+ks = [2,4,6]
 
 
 #################### Saving
-savedir = r'C:\Data\p17.lbFCS2\21-07-13_sumN1'
+savedir = r'C:\Data\p17.lbFCS2\21-07-13_sim'
 
 #%%
 ### Load _props and _picked

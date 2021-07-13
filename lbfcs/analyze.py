@@ -202,7 +202,7 @@ def sum_kpicks(df_in,groups,k,new_id):
     picked = np.zeros((n_locs,len(combine.PICKED_COLS)), dtype = np.float32)
     
     ### Assign means to every column of output
-    means = np.nanmean(df.iloc[:,:].values,axis=0)
+    means = np.nanmean(df[combine.PICKED_COLS].values,axis=0)
     picked = np.tile(means,(n_locs,1))
     
     ### Assign group, frame and summed photon values to output
