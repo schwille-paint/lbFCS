@@ -1,3 +1,7 @@
+'''
+Script to analyze localization traces for each localization cluster (i.e. pick).
+Observables for each cluster are computed and based on these a solution for N, k_off and k_on is found.
+'''
 import os
 import traceback
 from dask.distributed import Client
@@ -7,32 +11,26 @@ import picasso_addon.io as addon_io
 import lbfcs.pick_combine as props
 
 ############################################################# Used imager concentrations in pM
-cs = [2500]*5
+cs = [5000]*3
 
 ############################################# Load raw data
 dir_names=[]
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-04-21_EGFR_2xCTC/09_w5-250pM_Cy3B-CTween-c2500_561-p50uW-s75_Pos0-4_1/Pos0_pd30'])
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-04-21_EGFR_2xCTC/09_w5-250pM_Cy3B-CTween-c2500_561-p50uW-s75_Pos0-4_1/Pos1_pd30'])
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-04-21_EGFR_2xCTC/09_w5-250pM_Cy3B-CTween-c2500_561-p50uW-s75_Pos0-4_1/Pos2_pd30'])
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-04-21_EGFR_2xCTC/09_w5-250pM_Cy3B-CTween-c2500_561-p50uW-s75_Pos0-4_1/Pos3_pd30'])
-dir_names.extend(['/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-04-21_EGFR_2xCTC/09_w5-250pM_Cy3B-CTween-c2500_561-p50uW-s75_Pos0-4_1/Pos4_pd30'])
+dir_names.extend([r'C:\Data\p17.lbFCS2\21-07-13_sumN1']*3)
 
 file_names=[]
-file_names.extend(['09_w5-250pM_Cy3B-CTween-c2500_561-p50uW-s75_Pos0-4_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
-file_names.extend(['09_w5-250pM_Cy3B-CTween-c2500_561-p50uW-s75_Pos0-4_1_MMStack_Pos1.ome_locs_render_picked.hdf5'])
-file_names.extend(['09_w5-250pM_Cy3B-CTween-c2500_561-p50uW-s75_Pos0-4_1_MMStack_Pos2.ome_locs_render_picked.hdf5'])
-file_names.extend(['09_w5-250pM_Cy3B-CTween-c2500_561-p50uW-s75_Pos0-4_1_MMStack_Pos3.ome_locs_render_picked.hdf5'])
-file_names.extend(['09_w5-250pM_Cy3B-CTween-c2500_561-p50uW-s75_Pos0-4_1_MMStack_Pos4.ome_locs_render_picked.hdf5'])
+file_names.extend(['sum_k3_picked.hdf5'])
+file_names.extend(['sum_k5_picked.hdf5'])
+file_names.extend(['sum_k7_picked.hdf5'])
 
 ############################################ Set parameters 
-params={'parallel': True}
+params={'parallel': False}
 
 ############################################# Start dask parallel computing cluster 
-try:
-    client = Client('localhost:8787')
-    print('Connecting to existing cluster...')
-except OSError:
-    props.cluster_setup_howto()
+# try:
+#     client = Client('localhost:8787')
+#     print('Connecting to existing cluster...')
+# except OSError:
+#     props.cluster_setup_howto()
 
 #%%
 

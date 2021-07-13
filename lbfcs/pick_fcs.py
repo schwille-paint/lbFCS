@@ -7,7 +7,7 @@ import lbfcs.varfuncs as varfuncs
 import lbfcs.multitau as multitau
 
 #%%
-def trace_ac(df,NoFrames,field = 'photons'):
+def trace_ac(df,NoFrames,field = 'photons',compute_ac=True):
     '''
     Get fluorescence trace for single pick and normalized multitau autocorrelation function (AC) employing multitau.autocorrelate().
 
@@ -30,13 +30,16 @@ def trace_ac(df,NoFrames,field = 'photons'):
     trace[df_sum.index.values] = df_sum[field].values # Add (summed) photons to trace for each frame
     
     ############################# Autocorrelate trace
-    ac = multitau.autocorrelate(trace,
-                                m=32,
-                                deltat=1,
-                                normalize=True,
-                                copy=False,
-                                dtype=np.float64(),
-                                )
+    if compute_ac:
+        ac = multitau.autocorrelate(trace,
+                                    m=32,
+                                    deltat=1,
+                                    normalize=True,
+                                    copy=False,
+                                    dtype=np.float64(),
+                                    )
+    else:
+        ac = 0
     
     return [trace,ac]
 

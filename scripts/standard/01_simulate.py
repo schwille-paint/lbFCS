@@ -6,30 +6,31 @@ import lbfcs.simulate as simulate
 
 ### Define system constants
 reps = 1000
-M = [18000]*3 + [36000]*2
+M = [4500]*1
 CycleTime = 0.4
 
-N = 12
+N = 1
 koff = 1.15e-1
-kon = 30e6
-cs = [5000e-12, 2500e-12, 1250e-12, 625e-12, 313e-12]
+kon = 21.5e6
+cs = [5000e-12]
 
 box = 7
 e_tot = 400
 sigma = 0.9
 use_weight = False
 
-savedir = '/fs/pool/pool-schwille-paint/Data/p17.lbFCS2/21-01-22_Simulation/5xCTC_exp400_T23_kon30e6_4M_new_CORR1_nock/N12'
+savedir = r'C:\Data\p17.lbFCS2\21-07-13_sim'
 #%%
 for i,c in enumerate(cs):
     ### Path and naming
     N_str=('%i'%(N)).zfill(2)
     c_str=('%i'%(c*1e12)).zfill(4)
     
-    savename='N%s_c%s.hdf5'%(N_str,c_str)
+    savename='N%s_c%s_picked.hdf5'%(N_str,c_str)
     savepath=os.path.join(savedir,savename)
     
     ### Generate simulation
+    
     locs = simulate.generate_locs(savepath,
                                   reps,
                                   M[i],

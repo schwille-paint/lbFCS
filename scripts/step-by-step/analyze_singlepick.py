@@ -15,10 +15,10 @@ plt.style.use(r'C:\Users\flori\Documents\mpi\repos\lbFCS\styles\paper.mplstyle')
 # plt.style.use('~/lbFCS/styles/paper.mplstyle')
 
 ############################## Load props & picked
-dir_names = [r'C:\Data\p17.lbFCS2\21-04-30_B23_N1-4\01_s1_Pm2-8nt-c5000_p40uW_s50_3FOVs_1']
+dir_names = [r'C:\Data\p17.lbFCS2\21-07-13_sumN1']
 
-props_init,files_props = analyze.load_all_pickedprops(dir_names,must_contain = ['Pos0'],filetype = 'props')
-picked_init,files_picked = analyze.load_all_pickedprops(dir_names,must_contain = ['Pos0'],filetype = 'picked')
+props_init,files_props = analyze.load_all_pickedprops(dir_names,must_contain = ['k2'],filetype = 'props')
+picked_init,files_picked = analyze.load_all_pickedprops(dir_names,must_contain = ['k2'],filetype = 'picked')
 
 #%%
 print(files_props)
@@ -56,7 +56,7 @@ Analyze one group
 ##############################
 
 ### Select one specific group 
-g = 7
+g = 14
 g = groups[g]
 df = picked.query('group == @g')
 
@@ -64,7 +64,7 @@ df = picked.query('group == @g')
 M = df.M.iloc[0]
 ignore = 1
 weights = [1,1,1,1]
-photons_field = 'photons'
+photons_field = 'photons_ck'
 exp = 0.4
 
 ### Get all properties of this group
@@ -82,7 +82,7 @@ eps ,x, y, y2, y_diff = other.extract_eps(df[photons_field].values)
 Visualize
 '''
 ##############################
-p_uplim = 2300
+p_uplim = 1200
 level_uplim = 4
 window = [2000,3000]
 

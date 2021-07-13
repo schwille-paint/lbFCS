@@ -68,6 +68,26 @@ PROPS_ORDERCOLS = ['conc','group',
                    'frame','std_frame','photons','bg','x','y','lpx','lpy','sx','sy',
                    'nn_d','M',
                    ]
+
+PICKED_DTYPE = {'group':np.uint32,
+                'frame':np.uint32,
+                'x':np.float32,
+                'y': np.float32,
+                'photons':np.float32,
+                'sx':np.float32,
+                'sy':np.float32,
+                'bg':np.float32,
+                'lpx':np.float32,
+                'lpy':np.float32,
+                'ellipticity':np.float32,
+                'net_gradient':np.float32,
+                'photons_ck':np.float32,
+                'conc':np.uint32,
+                'M':np.uint16,
+                }
+
+PICKED_COLS = [field for field in PICKED_DTYPE]
+
 #%%
 def combine(df,NoFrames,ignore,weights):
     ''' 

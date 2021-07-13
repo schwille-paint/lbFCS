@@ -3,6 +3,7 @@ import pandas as pd
 import numba
 import time
 from datetime import datetime
+from tqdm import tqdm as tqdm
 
 ### Test if GPU fitting can be used
 try:
@@ -147,104 +148,6 @@ def traces_to_locs(reps,M,CycleTime,N,koff,kon,c, box):
     
     return locs
 
-#%%
-def generate_locs(savepath,
-                  reps,
-                  M,
-                  CycleTime,
-                  N,
-                  koff,
-                  kon,
-                  c,
-                  box,
-                  e_tot,
-                  snr,
-                  sigma = 0.9,
-                  use_weight=True):
-    
-    ### Print statement
-    print('%ix simulations of:'%reps)
-    print('M:    %i'%M)
-    print('exp:  %.2f [s]'%CycleTime)
-    print('N:    %i'%N)
-    print('koff: %.1e [1/s]'%koff)
-    print('kon:  %.1e [1/Ms]'%kon)
-    print('conc: %.1e [M]'%c)
-    print('box: %i [ px]'%box)
-    print('e_tot:  %i [e-]'%e_tot)
-    print('snr: %.1f []'%snr)
-    print()
-    
-    t0=time.time()
-    
-    ### Checks
-    assert isinstance(M,int)
-    assert isinstance(N,int)
-    assert isinstance(reps,int)
-    
-    ### Simulate hybridization traces (repetition = reps) and return as locs with group ids and other necessary columns
-    locs = traces_to_locs(reps,M,CycleTime,N,koff,kon,c, box)
-    
-    ### Remove zeros in imager levels
-    locs=locs[locs['imagers']>0]
-    
-    ### Add photon noise by spot creation and fitting
-    bg = snr_to_bg(e_tot,snr,sigma)
-    locs, spots = noise_fitspots(locs, box, e_tot, bg, sigma, use_weight)
-    
-    ### Convert to DataFrame
-    locs = pd.DataFrame(locs)
-    print(locs.shape) # INSERTED FOR DEBUG!!!!!
-    
-    ### Check for any negative values in photon, bg, sx, sy values ...
-    positives = (locs.photons>0) & (locs.bg>0) & (locs.sx>0) & (locs.sy>0)
-    locs = locs[positives]
-    
-    ### ... and remove localizations below mng
-    mng = set_mng(box,e_tot,snr,sigma)[0]
-    positives = locs.net_gradient > mng
-    locs = locs[positives]
-    
-    ### Apply photon step filter
-    print('Applying Chung-Kennedy filter ...')
-    locs = locs.groupby('group').apply(lambda df: df.assign( photons_ck = autopick.ck_nlf(df.photons.values).astype(np.float32) ) )
-    locs = locs.droplevel(level=['group'])
-    locs = locs.reset_index()
-    
-    ###
-    print('Total time: %.2f [s]'%(time.time()-t0))
-    print()
-    
-    ### Saving
-    print('Saving ...')
-    info=[{'Width':700,
-            'Height':700,
-            'reps':int(reps),
-            'Frames':int(M),
-            'exp':float(CycleTime),
-            'N':int(N),
-            'koff':float(koff),
-            'kon':float(kon),
-            'conc':float(c),
-            'box':int(box),
-            'e_tot':int(e_tot),
-            'snr':float(snr),
-            'sigma':float(sigma),
-            'use_weight':bool(use_weight),
-            'mng':int(mng),
-            'bg':float(bg),
-            'date': int(datetime.now().strftime('%Y%m%d')),
-            }]
-    
-    try:
-        addon_io.save_locs(savepath,
-                            locs,
-                            info,
-                            mode='picasso_compatible')
-    except OSError:
-        print('Could not save file to savepath!')
-        
-    return locs, info, spots 
 
 #%%
 def noise_fitspots(locs, box, e_tot, bg, sigma, use_weight):
@@ -300,7 +203,6 @@ def generate_spots(locs, box, e_tot, bg, sigma):
     
     ### Generate gauss2D spots with super-poissonian shot noise
     spots_shotnoise = np.random.poisson(spots)
-    # spots_shotnoise = np.random.poisson(spots_shotnoise) # super-poissonian shot noise?!?
     
     ### Generate spots readout noise 
     spots_readvar = localize.cut_spots_readvar(locs,box)
@@ -308,7 +210,9 @@ def generate_spots(locs, box, e_tot, bg, sigma):
     spots_readnoise = np.random.normal(0,np.sqrt(spots_readvar))
     
     ### Combine noise distributions
-    spots_noise = spots_shotnoise + spots_readnoise
+    '''!!!!! NO READOUT NOISE IN CURRENT IMPLEMENTATION !!!!!
+    '''
+    spots_noise = spots_shotnoise #+ spots_readnoise 
     spots_noise = spots_noise.astype(np.float32)
     
     ### Reshape spots 
@@ -350,18 +254,34 @@ def fit_spots(locs,box,spots,spots_readvar,use_weight,e_tot,bg,sigma):
             locs_out['lpy'] = postprocess.localization_precision(theta[:, 0], theta[:, 4], theta[:, 5], em = False)
             
     else:
-        print('Only GPU fitting implemented assigning imagers ...')
-        
-        ### Assign missing values when fit is not performed
-        locs_out['photons'] = locs_out['imagers'] *e_tot
-        locs_out['bg'] = bg
-        locs_out['x'] = locs_out['x_in']
-        locs_out['y'] = locs_out['y_in']
-        locs_out['sx'] = sigma
-        locs_out['sy'] = sigma
-        locs_out['lpx'] = postprocess.localization_precision(locs_out['photons'],locs_out['sx'],locs_out['bg'],em = False)
-        locs_out['lpy'] = postprocess.localization_precision(locs_out['photons'],locs_out['sx'],locs_out['bg'],em = False)
-        
+        if use_weight:
+            print('No weighted CPU fitting implemented assigning imagers ...')
+            
+            ### Assign missing values when weighted CPU fit is not performed
+            locs_out['photons'] = locs_out['imagers'] *e_tot
+            locs_out['bg'] = bg
+            locs_out['x'] = locs_out['x_in']
+            locs_out['y'] = locs_out['y_in']
+            locs_out['sx'] = sigma
+            locs_out['sy'] = sigma
+            locs_out['lpx'] = postprocess.localization_precision(locs_out['photons'],locs_out['sx'],locs_out['bg'],em = False)
+            locs_out['lpy'] = postprocess.localization_precision(locs_out['photons'],locs_out['sx'],locs_out['bg'],em = False)
+        else:
+            print('Non-weighted non-parallel least square fitting (CPU) ...')
+            theta = np.empty((len(spots), 6), dtype = np.float32)
+            theta.fill(np.nan)
+            for i, spot in enumerate(tqdm(spots)):
+                theta[i] = gausslq.fit_spot(spot)
+            
+            locs_out['photons'] = theta[:,2]
+            locs_out['bg'] = theta[:,3]
+            locs_out['x'] = np.round(locs_out['x_in']) + theta[:,0] - int(box/2)
+            locs_out['y'] = np.round(locs_out['y_in']) + theta[:,1] - int(box/2)
+            locs_out['sx'] = theta[:,4]
+            locs_out['sy'] = theta[:,5]
+            locs_out['lpx'] = postprocess.localization_precision(theta[:, 2], theta[:, 4], theta[:, 5], em = False)
+            locs_out['lpy'] = postprocess.localization_precision(theta[:, 2], theta[:, 4], theta[:, 5], em = False)
+            
     return locs_out
 
 #%%
@@ -417,3 +337,102 @@ def set_mng(box,e_tot,snr,sigma):
     print('With bg of %.1f mng set to %i'%(bg,mng))
     
     return mng,ng, spots_zero
+
+#%%
+def generate_locs(savepath,
+                  reps,
+                  M,
+                  CycleTime,
+                  N,
+                  koff,
+                  kon,
+                  c,
+                  box,
+                  e_tot,
+                  snr,
+                  sigma = 0.9,
+                  use_weight=True):
+    
+    ### Print statement
+    print('%ix simulations of:'%reps)
+    print('M:    %i'%M)
+    print('exp:  %.2f [s]'%CycleTime)
+    print('N:    %i'%N)
+    print('koff: %.1e [1/s]'%koff)
+    print('kon:  %.1e [1/Ms]'%kon)
+    print('conc: %.1e [M]'%c)
+    print('box: %i [ px]'%box)
+    print('e_tot:  %i [e-]'%e_tot)
+    print('snr: %.1f []'%snr)
+    print()
+    
+    t0=time.time()
+    
+    ### Checks
+    assert isinstance(M,int)
+    assert isinstance(N,int)
+    assert isinstance(reps,int)
+    
+    ### Simulate hybridization traces (repetition = reps) and return as locs with group ids and other necessary columns
+    locs = traces_to_locs(reps,M,CycleTime,N,koff,kon,c, box)
+    
+    ### Remove zeros in imager levels
+    locs=locs[locs['imagers']>0]
+    
+    ### Add photon noise by spot creation and fitting
+    bg = snr_to_bg(e_tot,snr,sigma)
+    locs, spots = noise_fitspots(locs, box, e_tot, bg, sigma, use_weight)
+    
+    ### Convert to DataFrame
+    locs = pd.DataFrame(locs)
+    #print(locs.shape) # INSERTED FOR DEBUG!!!!!
+    
+    ### Check for any negative values in photon, bg, sx, sy values ...
+    positives = (locs.photons>0) & (locs.bg>0) & (locs.sx>0) & (locs.sy>0)
+    locs = locs[positives]
+    
+    ### ... and remove localizations below mng
+    mng = set_mng(box,e_tot,snr,sigma)[0]
+    positives = locs.net_gradient > mng
+    locs = locs[positives]
+    
+    ### Apply photon step filter
+    print('Applying Chung-Kennedy filter ...')
+    locs = locs.groupby('group').apply(lambda df: df.assign( photons_ck = autopick.ck_nlf(df.photons.values).astype(np.float32) ) )
+    locs = locs.droplevel(level=['group'])
+    locs = locs.reset_index()
+    
+    ###
+    print('Total time: %.2f [s]'%(time.time()-t0))
+    print()
+    
+    ### Saving
+    print('Saving ...')
+    info=[{'Width':700,
+            'Height':700,
+            'reps':int(reps),
+            'Frames':int(M),
+            'exp':float(CycleTime),
+            'N':int(N),
+            'koff':float(koff),
+            'kon':float(kon),
+            'conc':float(c),
+            'box':int(box),
+            'e_tot':int(e_tot),
+            'snr':float(snr),
+            'sigma':float(sigma),
+            'use_weight':bool(use_weight),
+            'mng':int(mng),
+            'bg':float(bg),
+            'date': int(datetime.now().strftime('%Y%m%d')),
+            }]
+    
+    try:
+        addon_io.save_locs(savepath,
+                            locs,
+                            info,
+                            mode='picasso_compatible')
+    except OSError:
+        print('Could not save file to savepath!')
+        
+    return locs, info, spots
