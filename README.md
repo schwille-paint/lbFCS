@@ -1,7 +1,8 @@
 # lbFCS
 
 ## Description
-Python package to evaluate [DNA-PAINT][paint] SMLM data via autocorrelation analysis for self-calibrating counting of molecules (according to ['Towards absolute molecular numbers in DNA-PAINT'][paper]). It requires the installation of the [picasso](https://github.com/jungmannlab/picasso) package.
+Python package to evaluate [DNA-PAINT][paint] SMLM data via autocorrelation analysis for self-calibrating counting of molecules (according to ['Towards absolute molecular numbers in DNA-PAINT'][paper]). 
+It requires the installation of the [picasso](https://github.com/jungmannlab/picasso) package.
 
 <img src="/docs/figures/principle.png" alt="principle" width="700">
 
@@ -35,7 +36,8 @@ Finally we install lbFCS into our environment
 
 
 ## Usage
-The following is a short guide through the necessary processing steps from DNA-PAINT raw-data to the final result according to ['Towards absolute molecular numbers in DNA-PAINT'][paper]. For more information on the imaging modalities or sample preparation please refer to the reference. 
+The following is a short guide through the necessary processing steps from DNA-PAINT raw-data to the final result according to ['Towards absolute molecular numbers in DNA-PAINT'][paper]. 
+For more information on the imaging modalities or sample preparation please refer to the reference. 
 
 
 1. Localize the raw movie and perform drift correction [(localize_undrift notebook)](/scripts/notebooks/01_localize_undrift.ipynb)

@@ -37,7 +37,7 @@ def extract_eps(p):
     eps = (eps_median + eps_mean)/2
     
     ### Cut out first peak p based on eps
-    in_first_peak = p-eps < 0.4 * eps
+    in_first_peak = np.abs(p-eps) < 0.4 * eps
     eps = np.median(p[in_first_peak])
     
     return eps ,x, y, y2, y_diff

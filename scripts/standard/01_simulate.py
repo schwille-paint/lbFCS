@@ -6,12 +6,12 @@ import lbfcs.simulate as simulate
 
 ### Define system constants
 reps = 1000
-M = [4500]*1
-CycleTime = 0.4
+M = [9000]*1
+CycleTime = 0.2
 
 N = 1
-koff = 1.15e-1
-kon = 21.5e6
+koff = 2.66e-1
+kon = 6.5e6
 cs = [5000e-12]
 
 box = 7
@@ -19,7 +19,7 @@ e_tot = 350
 sigma = 0.9
 use_weight = False
 
-savedir = r'C:\Data\p17.lbFCS2\21-07-13_sim'
+savedir = r'C:\Data\p17.lbFCS2\21-07-13_sim_Pm2_exp200'
 
 #%%
 for i,c in enumerate(cs):

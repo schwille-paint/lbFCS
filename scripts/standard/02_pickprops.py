@@ -11,16 +11,18 @@ import picasso_addon.io as addon_io
 import lbfcs.pick_combine as props
 
 ############################################################# Used imager concentrations in pM
-cs = [5000]*3
+cs = [1666]*4
 
 ############################################# Load raw data
 dir_names=[]
-dir_names.extend([r'C:\Data\p17.lbFCS2\21-07-13_sim']*3)
+dir_names.extend([r'C:\Data\p17.lbFCS2\21-07-15_sumN1_5xCTC-1666pM']*4)
 
 file_names=[]
-file_names.extend(['sum_k2_picked.hdf5'])
-file_names.extend(['sum_k4_picked.hdf5'])
-file_names.extend(['sum_k6_picked.hdf5'])
+# file_names.extend(['id180_Pm2-1d25nM_p40uW_exp400_1_MMStack_Pos0.ome_locs_render_picked.hdf5'])
+file_names.extend(['sum_k3_picked.hdf5'])
+file_names.extend(['sum_k5_picked.hdf5'])
+file_names.extend(['sum_k7_picked.hdf5'])
+file_names.extend(['sum_k8_picked.hdf5'])
 
 ############################################ Set parameters 
 params={'parallel': False}
