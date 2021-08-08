@@ -6,6 +6,8 @@ Python package to evaluate [DNA-PAINT][paint] SMLM data via autocorrelation anal
 
 ** !Important!: To use the published version of the package, please refer to the 'published' branch of the repository**
 
+> :warning: **If you are using mobile browser**: Be very careful here!
+
 <img src="/docs/figures/principle.png" alt="principle" width="700">
 
 ## Table of contents
